@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Satu aksen gelap untuk seluruh aplikasi. Peran tidak diberi warna
+     sendiri — dibedakan lewat judul halaman dan isi menu. */
+  --color-tinta: #14181f;
+  --color-tinta-lembut: #232935;
+  --color-kertas: #eef0f4;
+  --color-garis: #e9ebef;
+
+  /* Aksen semantik untuk lencana angka: menandai jenis metrik, bukan peran. */
+  --color-biru: #2f6fed;
+  --color-biru-lembut: #eaf1fe;
+  --color-hijau: #0f9d58;
+  --color-hijau-lembut: #e7f6ee;
+  --color-jingga: #e08600;
+  --color-jingga-lembut: #fdf3e3;
+  --color-merah: #e0484f;
+  --color-merah-lembut: #fdedee;
+  --color-ungu: #7350d8;
+  --color-ungu-lembut: #f1edfd;
+
+  /* Kedalaman dibentuk oleh bayangan berlapis, bukan garis tebal. */
+  --shadow-kartu: 0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px -18px rgba(16, 24, 40, 0.16);
+  --shadow-naik: 0 2px 4px rgba(16, 24, 40, 0.05), 0 22px 44px -22px rgba(16, 24, 40, 0.24);
+  --shadow-panel: 0 2px 6px rgba(10, 14, 20, 0.18), 0 28px 56px -28px rgba(10, 14, 20, 0.55);
+
+  --radius-kartu: 1.5rem;
+}
+
+:root {
+  color-scheme: light;
+  --aksen: var(--color-tinta);
+}
+
+body {
+  background-color: var(--color-kertas);
+  /* Gradasi sangat samar supaya latar tidak terasa datar seperti kertas cetak. */
+  background-image:
+    radial-gradient(1200px 600px at 12% -10%, rgba(47, 111, 237, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(115, 80, 216, 0.05), transparent 55%);
+  background-attachment: fixed;
+  color: var(--color-tinta);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.018em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Bilah tab boleh digulir di layar sempit, tanpa scrollbar yang terlihat. */
+.gulir-halus {
+  scrollbar-width: none;
+}
+.gulir-halus::-webkit-scrollbar {
+  display: none;
+}
+
+/* Jumlah pupuk selalu diketik, tidak pernah dinaik-turunkan. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
