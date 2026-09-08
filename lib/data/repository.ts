@@ -8,20 +8,27 @@
 
 import type {
   Alokasi,
+  AspekTepat,
   Database,
-  HasilValidasi,
-  Inspeksi,
-  Kesesuaian,
-  KesesuaianInspeksi,
+  EskalasiKe,
   ItemPupuk,
   JenisTindakLanjut,
+  Kesesuaian,
   LaporanPemanfaatan,
-  LokasiInspeksi,
   MetodeBayar,
+  ObjekPengawasan,
+  Pemeriksaan,
   Pengiriman,
   Penyaluran,
+  PeriksaAdministrasi,
+  PeriksaHarga,
+  PeriksaPenerima,
+  PeriksaStok,
   SasaranTindakLanjut,
+  StatusTindakLanjut,
+  Temuan,
   TindakLanjut,
+  TingkatTemuan,
 } from '@/lib/domain/types'
 
 export interface BuatAlokasiInput {
@@ -69,10 +76,19 @@ export interface KonfirmasiPenyaluranInput {
   catatan?: string
 }
 
-export interface ValidasiPenyaluranInput {
+/**
+ * Telaah dokumen satu transaksi oleh pengawas.
+ *
+ * Bukan persetujuan: status transaksi tidak berubah sama sekali. Yang
+ * tersimpan hanya catatan bahwa transaksi ini sudah tersentuh pengawasan
+ * dan apa hasilnya.
+ */
+export interface TelaahPenyaluranInput {
   pengawasId: string
-  hasil: HasilValidasi
+  hasil: 'sesuai' | 'temuan'
   catatan?: string
+  /** Temuan yang lahir dari telaah, bila hasilnya `temuan`. */
+  temuan?: Array<{ aspek: AspekTepat; uraian: string; tingkat: TingkatTemuan }>
 }
 
 export interface BuatPemanfaatanInput {
@@ -86,14 +102,33 @@ export interface BuatPemanfaatanInput {
   catatan?: string
 }
 
-export interface BuatInspeksiInput {
+export interface BuatPemeriksaanInput {
   pengawasId: string
-  lokasiTipe: LokasiInspeksi
-  lokasiId: string
+  objekTipe: ObjekPengawasan
+  objekId: string
   tanggal: string
-  temuan: string[]
-  kesesuaian: KesesuaianInspeksi
+  pendamping: string[]
+  sampelPenyaluranIds: string[]
+  stok: PeriksaStok[]
+  harga: PeriksaHarga[]
+  penerima: PeriksaPenerima[]
+  administrasi: PeriksaAdministrasi[]
+  /** Temuan yang tidak terbaca dari angka, diketik pengawas. */
+  temuanTambahan: Array<{ aspek: AspekTepat; uraian: string; tingkat: TingkatTemuan }>
   catatan?: string
+  ttdPengawas?: string
+  ttdObjek?: string
+}
+
+export interface BuatTemuanInput {
+  aspek: AspekTepat
+  uraian: string
+  tingkat: TingkatTemuan
+  objekTipe: ObjekPengawasan
+  objekId: string
+  sumber: Temuan['sumber']
+  sumberId: string
+  tanggal: string
 }
 
 export interface BuatTindakLanjutInput {
@@ -101,11 +136,19 @@ export interface BuatTindakLanjutInput {
   jenis: JenisTindakLanjut
   sasaranTipe: SasaranTindakLanjut
   sasaranId: string
+  /** Temuan yang hendak ditutup oleh tindak lanjut ini. */
+  temuanIds: string[]
   judul: string
   isi: string
   tanggal: string
-  refTipe?: 'validasi' | 'inspeksi'
-  refId?: string
+  tenggat: string
+}
+
+/** Perkembangan pelaksanaan — inilah yang menutup lingkaran pengawasan. */
+export interface PerbaruiTindakLanjutInput {
+  status: StatusTindakLanjut
+  buktiPelaksanaan?: string
+  eskalasiKe?: EskalasiKe
 }
 
 export interface DataRepo {
@@ -118,11 +161,17 @@ export interface DataRepo {
 
   buatPenyaluran(input: BuatPenyaluranInput): Promise<Penyaluran>
   konfirmasiPenyaluran(id: string, input: KonfirmasiPenyaluranInput): Promise<Penyaluran>
-  validasiPenyaluran(id: string, input: ValidasiPenyaluranInput): Promise<Penyaluran>
 
   buatPemanfaatan(input: BuatPemanfaatanInput): Promise<LaporanPemanfaatan>
-  buatInspeksi(input: BuatInspeksiInput): Promise<Inspeksi>
+
+  telaahPenyaluran(id: string, input: TelaahPenyaluranInput): Promise<Penyaluran>
+  buatPemeriksaan(input: BuatPemeriksaanInput): Promise<Pemeriksaan>
+  buatTemuan(input: BuatTemuanInput): Promise<Temuan>
   buatTindakLanjut(input: BuatTindakLanjutInput): Promise<TindakLanjut>
+  perbaruiTindakLanjut(
+    id: string,
+    input: PerbaruiTindakLanjutInput,
+  ): Promise<TindakLanjut>
 
   tandaiNotifikasiDibaca(id: string): Promise<void>
   tandaiSemuaNotifikasiDibaca(userId: string): Promise<void>

@@ -1,7 +1,7 @@
 # Skrip Demo
 
 Alur presentasi untuk menunjukkan rantai penuh **START → SELESAI** dalam
-sekitar 8 menit. Jalankan aplikasi lebih dulu:
+sekitar 10 menit. Jalankan aplikasi lebih dulu:
 
 ```bash
 npm run dev
@@ -80,24 +80,73 @@ kartu, dengan warna yang sama seperti pada diagram: biru, hijau, oranye, ungu.
 3. **Terima Pupuk** → buka transaksi yang menunggu.
 4. Pilih **Sesuai**, tanda tangani sebagai ketua, lalu **Konfirmasi penerimaan**.
 
-> "Petani punya bukti digital. Kalau jumlahnya tidak cocok, dia bisa menandai
-> tidak sesuai — dan pengawas langsung melihatnya."
+>  "Petani punya bukti digital. Statusnya langsung **Selesai** — di sini
+> rantai distribusinya tuntas. Kalau jumlahnya tidak cocok, dia bisa
+> menandai tidak sesuai, statusnya menjadi **Disanggah**, dan pengawas
+> langsung mendapat pemberitahuan."
 
 ---
 
-## 5. Pengawas KP3 — validasi & tindak lanjut (2 menit)
+## 5. Pengawas KP3 — memilih objek pengawasan (1,5 menit)
+
+Bagian ini sekaligus mengoreksi kesalahpahaman yang paling sering muncul:
+**KP3 tidak memvalidasi transaksi**.
 
 1. Avatar → **Lihat sebagai → Pengawas KP3**.
-2. **Monitoring Real-time**: alokasi, serapan, stok kios, dan blok
-   "Perlu perhatian" berisi transaksi bermasalah.
-3. **Validasi**: transaksi yang tadi dikonfirmasi kelompok tani sudah berada
-   di antrian teratas. Buka.
-4. Tunjukkan **Hasil pemeriksaan** — kelengkapan bukti diperiksa otomatis.
-5. Pilih **Valid**, simpan. Antrian berkurang satu.
-6. Buka **Laporan** — angka serapan sudah ikut berubah.
-7. Singgung **Inspeksi Lapangan** dan **Tindak Lanjut** sebagai penutup rantai:
-   teguran, rekomendasi, atau penghargaan yang langsung terkirim sebagai
-   notifikasi.
+2. **Monitoring Real-time**: alokasi, serapan, stok kios, **cakupan
+   pengawasan**, dan blok "Perlu perhatian".
+3. **Objek Pengawasan** → tab "Bertanda penapisan". Tunjukkan bahwa
+   transaksinya sudah berstatus **Selesai** sebelum pengawas menyentuhnya.
+4. Buka satu transaksi. Tunjukkan panel **Penapisan tujuh tepat** — sistem
+   yang mengujinya, dan butir yang gagal itulah alasan berbasis data untuk
+   memilih objek pemeriksaan.
+5. Simpan hasil telaah, atau klik **Jadikan objek pemeriksaan lapangan**.
+
+> "KP3 tidak memberi izin apa pun. Penyaluran sudah sah begitu kios dan
+> kelompok tani sepakat. Yang dikerjakan KP3 adalah mengawasi setelahnya,
+> dengan uji petik — karena itu yang diukur cakupan pengawasan, bukan
+> panjang antrian. Satu komisi kabupaten tidak mungkin memeriksa ribuan
+> transaksi satu per satu."
+
+---
+
+## 6. Pengawas KP3 — berita acara pemeriksaan (2 menit)
+
+Ini bagian paling kuat untuk pemangku kepentingan pengawasan.
+
+1. **Pemeriksaan → Catat pemeriksaan**. Pilih objek **Pengecer resmi**.
+2. Pada **Uji stok fisik**, angka sistem sudah terisi sendiri. Turunkan satu
+   angka fisik. Lihat panel **Pratinjau berita acara**: temuan aspek "tepat
+   jumlah" muncul seketika, dengan tingkat yang dinilai dari besar
+   simpangannya.
+3. Pada **Uji harga**, naikkan harga jual Urea di atas HET.
+
+> "Perhatikan ini. Pelanggaran HET **tidak mungkin** terbaca dari data
+> transaksi: di sana harga selalu tercatat sebesar HET, karena kios yang
+> menjual lebih mahal tidak akan melaporkannya sendiri. Satu-satunya
+> jalannya adalah pemeriksaan lapangan seperti ini — atau pengaduan petani."
+
+4. Hilangkan centang satu butir **administrasi**, isi instansi pendamping,
+   tanda tangani berita acara, lalu **Terbitkan berita acara**.
+5. Buka berita acaranya: uji stok, uji harga, verifikasi penerima, checklist
+   administrasi, temuan berkategori, dan sampel uji petik — satu dokumen.
+
+---
+
+## 7. Pengawas KP3 — menutup lingkaran (1,5 menit)
+
+1. **Temuan**: tunjukkan sebaran menurut **tujuh tepat** dan status tiap
+   temuan.
+2. Pilih temuan terbuka → **Tindak lanjuti** → **Susun draf dari temuan**.
+   Tetapkan tenggat, terbitkan.
+3. Buka suratnya, perbarui status pelaksanaan menjadi **Selesai** dengan
+   bukti pelaksanaan. Temuannya ikut menjadi **Selesai**.
+4. Tunjukkan surat yang **lewat tenggat** pada daftar, dan pilihan
+   **eskalasi** ke Satgas Pangan atau aparat penegak hukum.
+5. Buka **Laporan** — cakupan pengawasan dan kepatuhan kios ikut bergerak.
+
+> "Inilah yang dinilai pada maturitas SPIP: bukan berapa surat yang
+> diterbitkan, tetapi apakah temuannya terbukti selesai."
 
 ---
 
@@ -106,8 +155,9 @@ kartu, dengan warna yang sama seperti pada diagram: biru, hijau, oranye, ungu.
 Refresh browser — data tetap ada. Tekan **Reset data demo** untuk mengulang
 presentasi dari awal.
 
-> "Yang tadi kita lewati adalah 18 langkah pada diagram alur, tanpa ada satu
-> pun yang dilompati."
+> "Rantai distribusinya berhenti pada kelompok tani. Pengawasan berjalan di
+> atasnya sebagai lapisan sendiri: perencanaan objek, pemeriksaan, temuan,
+> tindak lanjut, pelaporan."
 
 ---
 
@@ -116,5 +166,9 @@ presentasi dari awal.
 - Ini prototipe: semua nama pelaku usaha, kelompok tani, dan transaksi adalah
   data sintetis, dan data tersimpan di browser masing-masing.
 - Belum ada autentikasi sungguhan, peta sebaran, maupun integrasi ke e-Pubers.
+- Kanal **pengaduan masyarakat** (WA, telepon, surat) belum dimodelkan, begitu
+  pula rencana pengawasan tahunan dan laporan hasil pengawasan sebagai dokumen
+  periodik. Bila ditanya, sebut ketiganya sebagai tahap berikutnya — bukan
+  sebagai hal yang terlewat.
 - Implementasi produksi direncanakan memakai Laravel + Filament; rancangan
   tabelnya sudah disiapkan di [ERD.md](ERD.md).

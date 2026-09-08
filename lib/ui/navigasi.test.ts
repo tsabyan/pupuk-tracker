@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NAVIGASI, NAVIGASI_UMUM, menuAktif } from '@/lib/ui/navigasi'
+import { NAVIGASI, NAVIGASI_UMUM, menuAktif, peranPemilik } from '@/lib/ui/navigasi'
 import type { Role } from '@/lib/domain/types'
 
 describe('penyorotan menu sidebar', () => {
@@ -20,7 +20,9 @@ describe('penyorotan menu sidebar', () => {
     ['poktan', '/poktan', '/poktan'],
     ['poktan', '/poktan/pemanfaatan/baru', '/poktan/pemanfaatan'],
     ['kp3', '/kp3', '/kp3'],
-    ['kp3', '/kp3/validasi/salur-0001', '/kp3/validasi'],
+    ['kp3', '/kp3/objek/salur-0001', '/kp3/objek'],
+    ['kp3', '/kp3/pemeriksaan/baru', '/kp3/pemeriksaan'],
+    ['kp3', '/kp3/temuan', '/kp3/temuan'],
     ['kp3', '/kp3/tindak-lanjut/baru', '/kp3/tindak-lanjut'],
   ]
 
@@ -35,6 +37,36 @@ describe('penyorotan menu sidebar', () => {
         .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
       const menyala = menuAktif(role, pathname)
       expect(cocok.filter((h) => h === menyala)).toHaveLength(1)
+    }
+  })
+})
+
+describe('pemilik halaman', () => {
+  const kasus: Array<[string, Role | null]> = [
+    ['/distributor', 'distributor'],
+    ['/distributor/pengiriman/kirim-0004', 'distributor'],
+    ['/pengecer/stok', 'pengecer'],
+    ['/poktan/pemanfaatan/baru', 'poktan'],
+    ['/kp3/laporan', 'kp3'],
+    ['/notifikasi', null],
+    ['/petunjuk', null],
+  ]
+
+  it.each(kasus)('%s dimiliki %s', (pathname, peran) => {
+    expect(peranPemilik(pathname)).toBe(peran)
+  })
+
+  it('setiap menu peran dimiliki peran itu sendiri', () => {
+    for (const peran of Object.keys(NAVIGASI) as Role[]) {
+      for (const item of NAVIGASI[peran]) {
+        expect(peranPemilik(item.href)).toBe(peran)
+      }
+    }
+  })
+
+  it('menu umum tidak dimiliki peran mana pun', () => {
+    for (const item of NAVIGASI_UMUM) {
+      expect(peranPemilik(item.href)).toBeNull()
     }
   })
 })

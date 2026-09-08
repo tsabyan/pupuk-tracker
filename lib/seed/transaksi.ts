@@ -7,30 +7,39 @@
  *
  * Beberapa transaksi sengaja ditinggalkan menggantung sebagai umpan aksi
  * saat presentasi: minimal satu pengiriman menunggu konfirmasi kios, satu
- * penyaluran menunggu konfirmasi poktan, dan beberapa menunggu validasi KP3.
+ * penyaluran menunggu konfirmasi poktan, dan satu penyaluran disanggah
+ * kelompok tani yang belum pernah disentuh pengawasan.
  */
 
 import type {
   Alokasi,
-  Inspeksi,
   ItemPengiriman,
   ItemPenyaluran,
   LaporanPemanfaatan,
   Notifikasi,
+  Pemeriksaan,
   Pengiriman,
   Penyaluran,
   Role,
+  Temuan,
   TindakLanjut,
   User,
-  Validasi,
 } from '@/lib/domain/types'
+import { BUTIR_ADMINISTRASI } from '@/lib/domain/types'
 import {
+  saatPemeriksaan,
   saatPengirimanDikirim,
   saatPenyaluranDikonfirmasi,
   saatPenyaluranDisalurkan,
+  saatTindakLanjut,
   type DraftNotifikasi,
   type KonteksNotif,
 } from '@/lib/domain/notifikasi'
+import {
+  kesimpulanOtomatis,
+  temuanDariPemeriksaan,
+  type DraftTemuan,
+} from '@/lib/domain/pengawasan'
 import { buatRng, geserHari, jamKerja } from './rng'
 import {
   DESA,
@@ -42,6 +51,7 @@ import {
   PENGECER,
   PERIODE_MULAI,
   PERIODE_SELESAI,
+  PETANI,
   RDKK,
   TAHUN_MUSIM,
   TANGGAL_ACUAN,
@@ -53,8 +63,8 @@ export interface HasilTransaksi {
   pengiriman: Pengiriman[]
   penyaluran: Penyaluran[]
   laporanPemanfaatan: LaporanPemanfaatan[]
-  validasi: Validasi[]
-  inspeksi: Inspeksi[]
+  pemeriksaan: Pemeriksaan[]
+  temuan: Temuan[]
   tindakLanjut: TindakLanjut[]
   notifikasi: Notifikasi[]
 }
@@ -88,8 +98,8 @@ export function buatTransaksi(): HasilTransaksi {
   const pengiriman: Pengiriman[] = []
   const penyaluran: Penyaluran[] = []
   const laporanPemanfaatan: LaporanPemanfaatan[] = []
-  const validasi: Validasi[] = []
-  const inspeksi: Inspeksi[] = []
+  const pemeriksaan: Pemeriksaan[] = []
+  const temuan: Temuan[] = []
   const tindakLanjut: TindakLanjut[] = []
 
   /* --------------------------------------------------------------- */
@@ -232,16 +242,11 @@ export function buatTransaksi(): HasilTransaksi {
 
         if (items.length === 0) continue
 
-        // Sebaran status: yang lama sudah tervalidasi, yang baru masih berjalan.
+        // Transaksi tuntas begitu kelompok tani menyatakan sikapnya. Satu
+        // transaksi sengaja disanggah supaya ada objek pengawasan hidup.
         const terakhir = ke === jumlahTransaksi - 1
-        const bermasalah = indexKios === 5 && indexPoktan === 0 && terakhir
-        const status: Penyaluran['status'] = bermasalah
-          ? 'bermasalah'
-          : terakhir
-            ? rng.peluang(0.45)
-              ? 'dikonfirmasi'
-              : 'divalidasi'
-            : 'divalidasi'
+        const disanggah = indexKios === 5 && indexPoktan === 0 && terakhir
+        const status: Penyaluran['status'] = disanggah ? 'disanggah' : 'dikonfirmasi'
 
         const total = items.reduce((t, i) => t + i.subtotal, 0)
         const tanggalKonfirmasi = geserHari(tanggal, 1)
@@ -265,37 +270,12 @@ export function buatTransaksi(): HasilTransaksi {
           konfirmasi: {
             tanggal: tanggalKonfirmasi,
             ttdKetua: TTD_CONTOH,
-            kesesuaian: bermasalah ? 'tidak_sesuai' : 'sesuai',
-            catatan: bermasalah
+            kesesuaian: disanggah ? 'tidak_sesuai' : 'sesuai',
+            catatan: disanggah
               ? 'Jumlah Urea yang diterima kurang dari yang tertulis di struk.'
               : 'Jenis dan jumlah pupuk sesuai, kondisi kemasan baik.',
           },
           dibuatPada: jamKerja(tanggal, rng),
-        }
-
-        if (status === 'divalidasi' || status === 'bermasalah') {
-          const pengawas = PENGAWAS[indexKios % PENGAWAS.length]
-          const tanggalValidasi = geserHari(tanggal, 3)
-          trx.validasi = {
-            pengawasId: pengawas.id,
-            tanggal: tanggalValidasi,
-            hasil: bermasalah ? 'tidak_valid' : 'valid',
-            catatan: bermasalah
-              ? 'Selisih jumlah dengan bukti struk. Diteruskan ke tindak lanjut.'
-              : 'Dokumen dan bukti penyaluran lengkap serta sesuai RDKK.',
-          }
-
-          validasi.push({
-            id: `validasi-${nomor(validasi.length + 1, 3)}`,
-            kode: `VAL/${TAHUN_MUSIM}/${nomor(validasi.length + 1, 3)}`,
-            pengawasId: pengawas.id,
-            targetTipe: 'penyaluran',
-            targetId: trx.id,
-            hasil: bermasalah ? 'tidak_valid' : 'valid',
-            catatan: trx.validasi.catatan,
-            tanggal: tanggalValidasi,
-            dibuatPada: jamKerja(tanggalValidasi, rng),
-          })
         }
 
         penyaluran.push(trx)
@@ -376,11 +356,11 @@ export function buatTransaksi(): HasilTransaksi {
   }
 
   /* --------------------------------------------------------------- */
-  /* 4. Laporan pemanfaatan, inspeksi, tindak lanjut                  */
+  /* 4. Laporan pemanfaatan kelompok tani                             */
   /* --------------------------------------------------------------- */
 
-  const tervalidasi = penyaluran.filter((p) => p.status === 'divalidasi')
-  tervalidasi.slice(0, 10).forEach((p, i) => {
+  const selesai = penyaluran.filter((p) => p.status === 'dikonfirmasi')
+  selesai.slice(0, 10).forEach((p, i) => {
     const poktan = KELOMPOK_TANI.find((k) => k.id === p.poktanId)!
     const tanggalAplikasi = geserHari(p.tanggal, 5)
     laporanPemanfaatan.push({
@@ -401,84 +381,386 @@ export function buatTransaksi(): HasilTransaksi {
     })
   })
 
-  const TEMUAN = [
-    'Papan informasi HET tidak terpasang di kios',
-    'Buku catatan penyaluran manual belum diperbarui',
-    'Stok fisik sesuai dengan catatan sistem',
-    'Kartu Tani sebagian anggota belum aktif',
-    'Penyimpanan pupuk organik terkena rembesan air',
-  ]
+  /* --------------------------------------------------------------- */
+  /* 5. Pemeriksaan lapangan & temuan                                 */
+  /* --------------------------------------------------------------- */
 
-  PENGECER.slice(0, 4).forEach((kios, i) => {
-    const tanggal = geserHari(TANGGAL_ACUAN, -(6 + i * 4))
-    const pengawas = PENGAWAS[i % PENGAWAS.length]
-    const kesesuaian: Inspeksi['kesesuaian'] =
-      i === 1 ? 'tidak_sesuai' : i === 2 ? 'sebagian' : 'sesuai'
+  const namaPupuk = (id: string) => JENIS_PUPUK.find((j) => j.id === id)?.nama ?? id
+  const namaObjekSeed = (tipe: Pemeriksaan['objekTipe'], id: string): string => {
+    if (tipe === 'distributor') return DISTRIBUTOR.find((d) => d.id === id)?.nama ?? id
+    if (tipe === 'pengecer') return PENGECER.find((p) => p.id === id)?.nama ?? id
+    if (tipe === 'poktan') return KELOMPOK_TANI.find((k) => k.id === id)?.nama ?? id
+    return PETANI.find((p) => p.id === id)?.nama ?? id
+  }
 
-    inspeksi.push({
-      id: `inspeksi-${nomor(i + 1, 3)}`,
-      kode: `INS/${TAHUN_MUSIM}/${nomor(i + 1, 3)}`,
-      pengawasId: pengawas.id,
-      lokasiTipe: 'pengecer',
-      lokasiId: kios.id,
-      tanggal,
-      temuan: [TEMUAN[i % TEMUAN.length], TEMUAN[(i + 2) % TEMUAN.length]],
-      kesesuaian,
-      catatan: 'Inspeksi rutin bulanan sesuai jadwal pengawasan KP3.',
-      dibuatPada: jamKerja(tanggal, rng),
+  /** Checklist administrasi lengkap, dipakai sebagai titik awal tiap objek. */
+  const administrasiLengkap = () =>
+    BUTIR_ADMINISTRASI.map((butir) => ({ butir, ada: true }))
+
+  /** Tiga transaksi terbaru satu kios, dipakai sebagai sampel uji petik. */
+  const sampelKios = (pengecerId: string) =>
+    penyaluran
+      .filter((p) => p.pengecerId === pengecerId && p.status === 'dikonfirmasi')
+      .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
+      .slice(0, 3)
+      .map((p) => p.id)
+
+  /** Stok sistem kios saat pemeriksaan — angka yang sama dengan yang dibaca layar. */
+  const stokSistem = (pengecerId: string) =>
+    JENIS_PUPUK.map((jp) => ({
+      jenisPupukId: jp.id,
+      sistemKg: ambilStok(pengecerId, jp.id),
+      fisikKg: ambilStok(pengecerId, jp.id),
+    }))
+
+  const hargaSesuai = () =>
+    JENIS_PUPUK.map((jp) => ({
+      jenisPupukId: jp.id,
+      het: jp.het,
+      hargaJual: jp.het,
+      biayaTambahan: 0,
+    }))
+
+  type RancanganPemeriksaan = Omit<
+    Pemeriksaan,
+    'id' | 'kode' | 'noBeritaAcara' | 'kesimpulan' | 'dibuatPada'
+  > & { temuanTambahan?: DraftTemuan[] }
+
+  const rancangan: RancanganPemeriksaan[] = []
+
+  // 5a. Kios patuh — berita acara tanpa temuan, dasar penghargaan.
+  {
+    const kios = PENGECER[0]
+    rancangan.push({
+      pengawasId: PENGAWAS[0].id,
+      pendamping: ['Dinas Perdagangan Kabupaten Sampang'],
+      objekTipe: 'pengecer',
+      objekId: kios.id,
+      tanggal: geserHari(TANGGAL_ACUAN, -18),
+      sampelPenyaluranIds: sampelKios(kios.id),
+      stok: stokSistem(kios.id),
+      harga: hargaSesuai(),
+      penerima: KELOMPOK_TANI.filter((k) => k.pengecerId === kios.id)
+        .slice(0, 2)
+        .map((k) => {
+          const rdkk = RDKK.find((r) => r.poktanId === k.id)
+          const hak = rdkk?.items.find((i) => i.jenisPupukId === 'pk-urea')?.jumlahKg ?? 0
+          const sisa = sisaHak.get(`${k.id}|pk-urea`) ?? 0
+          return {
+            poktanId: k.id,
+            terdaftarRdkk: true,
+            hakKg: hak,
+            ditebusKg: hak - sisa,
+          }
+        }),
+      administrasi: administrasiLengkap(),
+      catatan:
+        'Pemeriksaan rutin. Papan HET terpasang, kartu stok mutakhir, penyaluran sesuai RDKK.',
+      ttdPengawas: TTD_CONTOH,
+      ttdObjek: TTD_CONTOH,
     })
-  })
+  }
 
-  const tindakLanjutAwal: Array<{
-    jenis: TindakLanjut['jenis']
-    sasaranId: string
-    judul: string
-    isi: string
-    refId: string
-  }> = [
-    {
-      jenis: 'teguran',
-      sasaranId: PENGECER[1].id,
-      judul: 'Teguran tertulis: papan HET tidak terpasang',
-      isi: 'Kios wajib memasang papan informasi Harga Eceran Tertinggi di tempat yang mudah dilihat petani paling lambat 7 hari sejak surat ini diterbitkan.',
-      refId: 'inspeksi-002',
-    },
-    {
-      jenis: 'rekomendasi',
-      sasaranId: PENGECER[2].id,
-      judul: 'Rekomendasi perbaikan penyimpanan pupuk organik',
-      isi: 'Pupuk organik granul agar ditempatkan di atas palet dan dijauhkan dari dinding lembap untuk mencegah penggumpalan.',
-      refId: 'inspeksi-003',
-    },
-    {
-      jenis: 'penghargaan',
-      sasaranId: PENGECER[0].id,
-      judul: 'Apresiasi kepatuhan penyaluran',
-      isi: 'Kios tercatat menyalurkan seluruh transaksi sesuai RDKK dengan bukti lengkap sepanjang musim tanam berjalan.',
-      refId: 'inspeksi-001',
-    },
-  ]
-
-  tindakLanjutAwal.forEach((t, i) => {
-    const tanggal = geserHari(TANGGAL_ACUAN, -(4 + i * 3))
-    tindakLanjut.push({
-      id: `tindaklanjut-${nomor(i + 1, 3)}`,
-      kode: `TL/${TAHUN_MUSIM}/${nomor(i + 1, 3)}`,
-      pengawasId: PENGAWAS[i % PENGAWAS.length].id,
-      jenis: t.jenis,
-      sasaranTipe: 'pengecer',
-      sasaranId: t.sasaranId,
-      refTipe: 'inspeksi',
-      refId: t.refId,
-      judul: t.judul,
-      isi: t.isi,
-      tanggal,
-      dibuatPada: jamKerja(tanggal, rng),
+  // 5b. Harga di atas HET — hanya terbukti di lapangan, tidak dari data sistem.
+  {
+    const kios = PENGECER[1]
+    rancangan.push({
+      pengawasId: PENGAWAS[1 % PENGAWAS.length].id,
+      pendamping: [
+        'Dinas Perdagangan Kabupaten Sampang',
+        'Satgas Pangan Polres Sampang',
+      ],
+      objekTipe: 'pengecer',
+      objekId: kios.id,
+      tanggal: geserHari(TANGGAL_ACUAN, -12),
+      sampelPenyaluranIds: sampelKios(kios.id),
+      stok: stokSistem(kios.id),
+      harga: JENIS_PUPUK.map((jp) =>
+        jp.id === 'pk-urea'
+          ? {
+              jenisPupukId: jp.id,
+              het: jp.het,
+              hargaJual: 2500,
+              biayaTambahan: 100,
+              keterangan:
+                'Petani membayar Rp 2.500/kg ditambah ongkos angkut Rp 100/kg. Struk hanya mencantumkan HET.',
+            }
+          : { jenisPupukId: jp.id, het: jp.het, hargaJual: jp.het, biayaTambahan: 0 },
+      ),
+      penerima: [],
+      administrasi: administrasiLengkap().map((a) =>
+        a.butir === 'Bukti transaksi / penebusan' ? { ...a, ada: false } : a,
+      ),
+      catatan:
+        'Keterangan tiga petani penerima seragam: harga tebus di atas HET. Struk yang disimpan kios mencantumkan HET.',
+      ttdPengawas: TTD_CONTOH,
+      ttdObjek: TTD_CONTOH,
+      temuanTambahan: [
+        {
+          aspek: 'ketentuan',
+          uraian:
+            'Papan informasi HET tidak terpasang pada tempat yang mudah dilihat petani.',
+          tingkat: 'ringan',
+        },
+      ],
     })
+  }
+
+  // 5c. Stok fisik tidak cocok dengan catatan sistem.
+  {
+    const kios = PENGECER[2]
+    rancangan.push({
+      pengawasId: PENGAWAS[2 % PENGAWAS.length].id,
+      pendamping: ['Dinas Pertanian dan Ketahanan Pangan Kabupaten Sampang'],
+      objekTipe: 'pengecer',
+      objekId: kios.id,
+      tanggal: geserHari(TANGGAL_ACUAN, -9),
+      sampelPenyaluranIds: sampelKios(kios.id),
+      stok: stokSistem(kios.id).map((st) =>
+        st.jenisPupukId === 'pk-organik'
+          ? { ...st, fisikKg: Math.max(0, st.sistemKg - 175) }
+          : st,
+      ),
+      harga: hargaSesuai(),
+      penerima: [],
+      administrasi: administrasiLengkap().map((a) =>
+        a.butir === 'Kartu stok masuk dan keluar' ? { ...a, ada: false } : a,
+      ),
+      catatan:
+        'Hitung fisik gudang kios disaksikan pemilik. Pupuk organik granul kurang dari catatan sistem.',
+      ttdPengawas: TTD_CONTOH,
+      ttdObjek: TTD_CONTOH,
+    })
+  }
+
+  // 5d. Verifikasi penerima ke kelompok tani — penerima di luar RDKK.
+  {
+    const poktan = KELOMPOK_TANI[7 % KELOMPOK_TANI.length]
+    const petaniLuar = PETANI.find((t) => t.poktanId === poktan.id)
+    const rdkk = RDKK.find((r) => r.poktanId === poktan.id)
+    const hak = rdkk?.items.find((i) => i.jenisPupukId === 'pk-npk')?.jumlahKg ?? 0
+    rancangan.push({
+      pengawasId: PENGAWAS[0].id,
+      pendamping: ['Penyuluh Pertanian Lapangan (PPL) wilayah setempat'],
+      objekTipe: 'poktan',
+      objekId: poktan.id,
+      tanggal: geserHari(TANGGAL_ACUAN, -6),
+      sampelPenyaluranIds: penyaluran
+        .filter((p) => p.poktanId === poktan.id && p.status === 'dikonfirmasi')
+        .slice(0, 2)
+        .map((p) => p.id),
+      stok: [],
+      harga: [],
+      penerima: [
+        {
+          poktanId: poktan.id,
+          petaniId: petaniLuar?.id,
+          terdaftarRdkk: false,
+          hakKg: hak,
+          ditebusKg: hak - (sisaHak.get(`${poktan.id}|pk-npk`) ?? 0),
+        },
+      ],
+      administrasi: [
+        { butir: 'Data penerima sesuai RDKK', ada: false },
+        { butir: 'Pencatatan penyaluran harian', ada: true },
+      ],
+      catatan:
+        'Wawancara pengurus kelompok. Satu penerima menebus atas nama anggota yang tidak tercantum pada RDKK musim ini.',
+      ttdPengawas: TTD_CONTOH,
+      ttdObjek: TTD_CONTOH,
+    })
+  }
+
+  // 5e. Gudang distributor — objek pemeriksaan yang sebelumnya tidak ada.
+  {
+    const dist = DISTRIBUTOR[0]
+    rancangan.push({
+      pengawasId: PENGAWAS[1 % PENGAWAS.length].id,
+      pendamping: ['Dinas Perdagangan Kabupaten Sampang'],
+      objekTipe: 'distributor',
+      objekId: dist.id,
+      tanggal: geserHari(TANGGAL_ACUAN, -21),
+      sampelPenyaluranIds: [],
+      stok: [],
+      harga: [],
+      penerima: [],
+      administrasi: [
+        { butir: 'Dokumen pengiriman distributor', ada: true },
+        { butir: 'Perizinan dan perjanjian kios', ada: true },
+        { butir: 'Kartu stok masuk dan keluar', ada: true },
+      ],
+      catatan:
+        'Pemeriksaan gudang lini III. Penyimpanan beralas palet, dokumen penyaluran ke kios lengkap.',
+      ttdPengawas: TTD_CONTOH,
+      ttdObjek: TTD_CONTOH,
+    })
+  }
+
+  rancangan.forEach((r, i) => {
+    const { temuanTambahan = [], ...isi } = r
+    const urut = i + 1
+    const dasar: Pemeriksaan = {
+      id: `periksa-${nomor(urut, 3)}`,
+      kode: `PRK/${TAHUN_MUSIM}/${nomor(urut, 3)}`,
+      noBeritaAcara: `BAP/${TAHUN_MUSIM}/${bulanDari(isi.tanggal)}/${nomor(urut, 3)}`,
+      ...isi,
+      // Diisi tepat setelah temuannya diturunkan.
+      kesimpulan: 'sesuai',
+      dibuatPada: jamKerja(isi.tanggal, rng),
+    }
+
+    // Temuan diturunkan dengan fungsi domain yang sama seperti input manual:
+    // data demo harus lolos aturan yang sama dengan yang diketik pengawas.
+    const draftTemuan: DraftTemuan[] = [
+      ...temuanDariPemeriksaan(dasar, namaPupuk, namaObjekSeed),
+      ...temuanTambahan,
+    ]
+    dasar.kesimpulan = kesimpulanOtomatis(draftTemuan)
+    pemeriksaan.push(dasar)
+
+    for (const t of draftTemuan) {
+      const urutTemuan = temuan.length + 1
+      temuan.push({
+        id: `temuan-${nomor(urutTemuan, 3)}`,
+        kode: `TMN/${TAHUN_MUSIM}/${nomor(urutTemuan, 3)}`,
+        sumber: 'pemeriksaan',
+        sumberId: dasar.id,
+        aspek: t.aspek,
+        uraian: t.uraian,
+        tingkat: t.tingkat,
+        status: 'terbuka',
+        objekTipe: dasar.objekTipe,
+        objekId: dasar.objekId,
+        tanggal: dasar.tanggal,
+        dibuatPada: jamKerja(dasar.tanggal, rng),
+      })
+    }
+
+    // Transaksi yang jadi sampel uji petik ikut tercatat terperiksa.
+    for (const id of dasar.sampelPenyaluranIds) {
+      const trx = penyaluran.find((p) => p.id === id)
+      if (!trx) continue
+      trx.pengawasan = {
+        pengawasId: dasar.pengawasId,
+        tanggal: dasar.tanggal,
+        pemeriksaanId: dasar.id,
+        hasil: draftTemuan.length > 0 ? 'temuan' : 'sesuai',
+        catatan: `Uji petik pada pemeriksaan ${dasar.noBeritaAcara}.`,
+      }
+    }
   })
 
   /* --------------------------------------------------------------- */
-  /* 5. Notifikasi untuk pekerjaan yang masih menggantung             */
+  /* 6. Telaah dokumen: uji petik tanpa turun ke lapangan             */
+  /* --------------------------------------------------------------- */
+
+  // Cakupan pengawasan tidak pernah 100% dan memang tidak perlu: KP3
+  // bekerja dengan uji petik. Sebagian transaksi ditelaah dari mejanya,
+  // sisanya sengaja dibiarkan belum tersentuh.
+  penyaluran
+    .filter((p) => p.status === 'dikonfirmasi' && !p.pengawasan)
+    .forEach((p, i) => {
+      if (i % 4 !== 0) return
+      const tanggalTelaah = geserHari(p.tanggal, 4)
+      p.pengawasan = {
+        pengawasId: PENGAWAS[i % PENGAWAS.length].id,
+        tanggal: tanggalTelaah,
+        hasil: 'sesuai',
+        catatan: 'Telaah dokumen: bukti dua pihak lengkap dan penebusan dalam batas RDKK.',
+      }
+    })
+
+  /* --------------------------------------------------------------- */
+  /* 7. Tindak lanjut — dengan tenggat dan status pelaksanaan         */
+  /* --------------------------------------------------------------- */
+
+  const temuanDari = (pemeriksaanId: string, aspek?: Temuan['aspek']) =>
+    temuan
+      .filter((t) => t.sumberId === pemeriksaanId && (!aspek || t.aspek === aspek))
+      .map((t) => t.id)
+
+  const rancanganTindakLanjut: Array<
+    Omit<TindakLanjut, 'id' | 'kode' | 'dibuatPada'>
+  > = [
+    {
+      pengawasId: PENGAWAS[1 % PENGAWAS.length].id,
+      jenis: 'teguran',
+      sasaranTipe: 'pengecer',
+      sasaranId: PENGECER[1].id,
+      temuanIds: temuanDari('periksa-002'),
+      judul: 'Teguran tertulis: penjualan di atas HET',
+      isi: 'Kios wajib menjual pupuk bersubsidi sesuai HET tanpa pungutan tambahan dalam bentuk apa pun, memasang papan informasi HET di tempat yang mudah dilihat petani, serta melengkapi bukti penebusan. Laporan perbaikan disampaikan kepada KP3 paling lambat pada tenggat.',
+      tanggal: geserHari(TANGGAL_ACUAN, -10),
+      tenggat: geserHari(TANGGAL_ACUAN, -3),
+      status: 'dalam_proses',
+      buktiPelaksanaan:
+        'Kios melaporkan papan HET sudah dipasang; pengembalian selisih harga kepada petani masih didata.',
+    },
+    {
+      pengawasId: PENGAWAS[2 % PENGAWAS.length].id,
+      jenis: 'rekomendasi',
+      sasaranTipe: 'pengecer',
+      sasaranId: PENGECER[2].id,
+      temuanIds: temuanDari('periksa-003'),
+      judul: 'Rekomendasi penertiban kartu stok dan hitung fisik bulanan',
+      isi: 'Kios agar menyelenggarakan kartu stok masuk-keluar yang mutakhir dan melakukan hitung fisik bulanan bersama penyuluh, sehingga selisih antara stok fisik dan catatan sistem terdeteksi lebih awal.',
+      tanggal: geserHari(TANGGAL_ACUAN, -8),
+      tenggat: geserHari(TANGGAL_ACUAN, -1),
+      status: 'selesai',
+      buktiPelaksanaan:
+        'Kartu stok terisi lengkap dan hitung fisik pertama dilakukan bersama PPL. Selisih 175 kg pupuk organik dijelaskan sebagai susut kemasan pecah dan sudah dikoreksi pada catatan.',
+      tanggalSelesai: geserHari(TANGGAL_ACUAN, -2),
+    },
+    {
+      pengawasId: PENGAWAS[0].id,
+      jenis: 'teguran',
+      sasaranTipe: 'poktan',
+      sasaranId: KELOMPOK_TANI[7 % KELOMPOK_TANI.length].id,
+      temuanIds: temuanDari('periksa-004', 'penerima'),
+      judul: 'Teguran: penebusan oleh penerima di luar RDKK',
+      isi: 'Penebusan pupuk bersubsidi hanya dapat dilakukan petani yang tercantum dalam RDKK musim tanam berjalan. Pengurus kelompok agar memperbaiki data keanggotaan dan menghentikan penebusan atas nama pihak yang tidak berhak.',
+      tanggal: geserHari(TANGGAL_ACUAN, -5),
+      tenggat: geserHari(TANGGAL_ACUAN, -1),
+      status: 'eskalasi',
+      eskalasiKe: 'satgas_pangan',
+      buktiPelaksanaan:
+        'Tidak ada tanggapan sampai tenggat. Diteruskan ke Satgas Pangan untuk penelusuran lebih lanjut.',
+    },
+    {
+      pengawasId: PENGAWAS[0].id,
+      jenis: 'penghargaan',
+      sasaranTipe: 'pengecer',
+      sasaranId: PENGECER[0].id,
+      temuanIds: [],
+      judul: 'Apresiasi kepatuhan penyaluran',
+      isi: 'Berita acara pemeriksaan tidak menemukan penyimpangan: harga sesuai HET, stok fisik cocok dengan catatan sistem, dan seluruh penyaluran sampel sesuai RDKK dengan bukti lengkap.',
+      tanggal: geserHari(TANGGAL_ACUAN, -16),
+      tenggat: geserHari(TANGGAL_ACUAN, -16),
+      status: 'selesai',
+      tanggalSelesai: geserHari(TANGGAL_ACUAN, -16),
+    },
+  ]
+
+  rancanganTindakLanjut.forEach((t, i) => {
+    const urut = i + 1
+    tindakLanjut.push({
+      id: `tindaklanjut-${nomor(urut, 3)}`,
+      kode: `TL/${TAHUN_MUSIM}/${nomor(urut, 3)}`,
+      ...t,
+      dibuatPada: jamKerja(t.tanggal, rng),
+    })
+
+    // Temuan yang sudah ditangani tidak lagi berdiri sebagai temuan terbuka.
+    for (const idTemuan of t.temuanIds) {
+      const target = temuan.find((x) => x.id === idTemuan)
+      if (!target) continue
+      target.tindakLanjutId = `tindaklanjut-${nomor(urut, 3)}`
+      target.status = t.status === 'selesai' ? 'selesai' : 'ditindaklanjuti'
+    }
+  })
+
+  /* --------------------------------------------------------------- */
+  /* 8. Notifikasi untuk pekerjaan yang masih menggantung             */
   /* --------------------------------------------------------------- */
 
   const ctx = konteksNotifSeed()
@@ -489,7 +771,15 @@ export function buatTransaksi(): HasilTransaksi {
   }
   for (const p of penyaluran) {
     if (p.status === 'disalurkan') draft.push(...saatPenyaluranDisalurkan(p, ctx))
-    if (p.status === 'dikonfirmasi') draft.push(...saatPenyaluranDikonfirmasi(p, ctx))
+    // Hanya sanggahan yang sampai ke pengawas — konfirmasi wajar tidak.
+    if (p.status === 'disanggah') draft.push(...saatPenyaluranDikonfirmasi(p, ctx))
+  }
+  for (const pr of pemeriksaan) {
+    const jumlah = temuan.filter((t) => t.sumberId === pr.id).length
+    draft.push(...saatPemeriksaan(pr, jumlah, ctx))
+  }
+  for (const t of tindakLanjut) {
+    draft.push(...saatTindakLanjut(t, ctx))
   }
 
   const notifikasi: Notifikasi[] = draft.map((d, i) => ({
@@ -504,8 +794,8 @@ export function buatTransaksi(): HasilTransaksi {
     pengiriman,
     penyaluran,
     laporanPemanfaatan,
-    validasi,
-    inspeksi,
+    pemeriksaan,
+    temuan,
     tindakLanjut,
     notifikasi,
   }

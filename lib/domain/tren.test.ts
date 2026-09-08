@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { perubahanTren, totalTren, trenPenyaluranHarian } from './tren'
 import type { Penyaluran, StatusPenyaluran } from './types'
 
-function salur(tanggal: string, jumlahKg: number, status: StatusPenyaluran = 'divalidasi'): Penyaluran {
+function salur(tanggal: string, jumlahKg: number, status: StatusPenyaluran = 'dikonfirmasi'): Penyaluran {
   return {
     id: `s-${tanggal}-${jumlahKg}`,
     kode: 'SLR-0001',

@@ -76,7 +76,7 @@ export default function HalamanPetunjuk() {
       <main className="mx-auto max-w-4xl space-y-10 px-4 py-8 pb-24 sm:px-6 sm:py-12">
         <PageHeader
           judul="Cara Menguji Prototipe Ini"
-          keterangan="Halaman ini memandu Anda menelusuri seluruh alur aplikasi, dari distributor menyusun alokasi sampai pengawas memvalidasi. Ikuti alur utama lebih dulu, baru jelajahi use case tiap peran dan pengujian batas."
+          keterangan="Halaman ini memandu Anda menelusuri seluruh alur aplikasi: rantai distribusi dari alokasi sampai pupuk diterima kelompok tani, lalu lapisan pengawasan KP3 di atasnya. Ikuti alur utama lebih dulu, baru jelajahi use case tiap peran dan pengujian batas."
         />
 
         <Card>
@@ -110,9 +110,10 @@ export default function HalamanPetunjuk() {
               Alur uji coba utama
             </h2>
             <p className="mt-1.5 text-sm text-neutral-500">
-              Enam tahap ini menelusuri rantai penuh dari awal sampai selesai. Perlu
-              sekitar 8 menit. Tombol di tiap tahap langsung memasukkan Anda sebagai
-              peran yang tepat.
+              {ALUR_UTAMA.length} tahap ini menelusuri rantai penuh dari awal sampai
+              selesai, plus siklus pengawasan yang berjalan di atasnya. Perlu sekitar
+              10 menit. Tombol di tiap tahap langsung memasukkan Anda sebagai peran
+              yang tepat.
             </p>
           </div>
 

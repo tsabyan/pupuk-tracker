@@ -83,7 +83,7 @@ export default function FormPemanfaatan() {
         keterangan="Catat penggunaan pupuk bersubsidi di lahan kelompok tani sesuai rekomendasi pemupukan."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardHeader judul="Data tanam" />
           <CardBody className="space-y-4">

@@ -46,7 +46,7 @@ export default function DetailAlokasi() {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card>
           <CardHeader
             judul="Rincian per pengecer resmi"
@@ -56,7 +56,7 @@ export default function DetailAlokasi() {
             <Tabel>
               <thead>
                 <tr>
-                  <Th>Pengecer</Th>
+                  <Th className="min-w-40">Pengecer</Th>
                   {db.jenisPupuk.map((jp) => (
                     <Th key={jp.id} numerik>
                       {jp.kode}

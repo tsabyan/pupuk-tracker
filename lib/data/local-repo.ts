@@ -9,26 +9,38 @@
  */
 
 import {
+  saatPemeriksaan,
   saatPengirimanDikirim,
   saatPengirimanDikonfirmasi,
   saatPenyaluranDikonfirmasi,
   saatPenyaluranDisalurkan,
-  saatPenyaluranDivalidasi,
   saatTindakLanjut,
+  saatTindakLanjutDiperbarui,
   type DraftNotifikasi,
 } from '@/lib/domain/notifikasi'
-import { cekTransisiPengiriman, cekTransisiPenyaluran } from '@/lib/domain/status'
+import {
+  kesimpulanOtomatis,
+  temuanDariPemeriksaan,
+  type DraftTemuan,
+} from '@/lib/domain/pengawasan'
+import {
+  cekTransisiPengiriman,
+  cekTransisiPenyaluran,
+  cekTransisiTindakLanjut,
+  penyaluranSelesai,
+} from '@/lib/domain/status'
 import { hitungSisaHak, sisaStok } from '@/lib/domain/stok'
 import type {
   Alokasi,
   Database,
-  Inspeksi,
   ItemPenyaluran,
   LaporanPemanfaatan,
   Notifikasi,
+  ObjekPengawasan,
+  Pemeriksaan,
   Pengiriman,
   Penyaluran,
-  StatusPenyaluran,
+  Temuan,
   TindakLanjut,
 } from '@/lib/domain/types'
 import { KesalahanAturan, type DataRepo } from './repository'
@@ -55,6 +67,37 @@ function terapkan<T>(ubah: (db: Database) => T): T {
     hasil = ubah(db)
   })
   return hasil
+}
+
+/** Nama entitas objek pengawasan, untuk menyusun uraian temuan. */
+function namaObjek(db: Database, tipe: ObjekPengawasan, id: string): string {
+  switch (tipe) {
+    case 'distributor':
+      return db.distributor.find((d) => d.id === id)?.nama ?? id
+    case 'pengecer':
+      return db.pengecer.find((p) => p.id === id)?.nama ?? id
+    case 'poktan':
+      return db.kelompokTani.find((k) => k.id === id)?.nama ?? id
+    case 'petani':
+      return db.petani.find((p) => p.id === id)?.nama ?? id
+  }
+}
+
+/** Simpan satu temuan dengan penomoran berurutan. */
+function catatTemuan(
+  db: Database,
+  input: Omit<Temuan, 'id' | 'kode' | 'status' | 'dibuatPada'>,
+): Temuan {
+  const urut = urutBerikut(db.temuan, 'temuan')
+  const temuan: Temuan = {
+    id: `temuan-${pad(urut, 3)}`,
+    kode: `TMN/${input.tanggal.slice(0, 4)}/${pad(urut, 3)}`,
+    status: 'terbuka',
+    dibuatPada: sekarang(),
+    ...input,
+  }
+  db.temuan.push(temuan)
+  return temuan
 }
 
 export const localRepo: DataRepo = {
@@ -272,14 +315,16 @@ export const localRepo: DataRepo = {
       const penyaluran = db.penyaluran.find((p) => p.id === id)
       if (!penyaluran) throw new KesalahanAturan('Penyaluran tidak ditemukan.')
 
-      const cek = cekTransisiPenyaluran(penyaluran.status, 'dikonfirmasi')
+      // Pernyataan penerima yang menentukan status akhir, bukan pengawas.
+      const tujuan = input.kesesuaian === 'sesuai' ? 'dikonfirmasi' : 'disanggah'
+      const cek = cekTransisiPenyaluran(penyaluran.status, tujuan)
       if (!cek.ok) throw new KesalahanAturan(cek.alasan)
 
       if (input.kesesuaian === 'tidak_sesuai' && !input.catatan?.trim()) {
         throw new KesalahanAturan('Jelaskan ketidaksesuaian yang ditemukan.')
       }
 
-      penyaluran.status = 'dikonfirmasi'
+      penyaluran.status = tujuan
       penyaluran.konfirmasi = {
         tanggal: sekarang().slice(0, 10),
         ttdKetua: input.ttdKetua,
@@ -326,95 +371,149 @@ export const localRepo: DataRepo = {
   /* Pengawas KP3                                                      */
   /* ---------------------------------------------------------------- */
 
-  async validasiPenyaluran(id, input) {
+  async telaahPenyaluran(id, input) {
     return terapkan((db) => {
       const penyaluran = db.penyaluran.find((p) => p.id === id)
       if (!penyaluran) throw new KesalahanAturan('Penyaluran tidak ditemukan.')
 
-      if (penyaluran.status !== 'dikonfirmasi') {
+      // Telaah menilai transaksi yang sudah terjadi. Sebelum kelompok tani
+      // menyatakan sikapnya, belum ada apa pun untuk ditelaah.
+      if (!penyaluranSelesai(penyaluran.status)) {
         throw new KesalahanAturan(
-          'Hanya penyaluran yang sudah dikonfirmasi kelompok tani yang bisa divalidasi.',
+          'Transaksi belum tuntas antara kios dan kelompok tani, jadi belum ada yang bisa ditelaah.',
         )
       }
-      if (input.hasil === 'tidak_valid' && !input.catatan?.trim()) {
-        throw new KesalahanAturan('Isi catatan temuan untuk hasil tidak valid.')
+      if (input.hasil === 'temuan' && !input.temuan?.length) {
+        throw new KesalahanAturan('Isi minimal satu temuan bila hasil telaah bertemuan.')
       }
 
       const tanggal = sekarang().slice(0, 10)
 
-      // "Perlu verifikasi" tidak memindahkan status: transaksi tetap
-      // menunggu sampai pengawas turun ke lapangan (flowchart KP3 #2 → #4).
-      const tujuan: StatusPenyaluran | null =
-        input.hasil === 'valid'
-          ? 'divalidasi'
-          : input.hasil === 'tidak_valid'
-            ? 'bermasalah'
-            : null
-
-      if (tujuan) {
-        const cek = cekTransisiPenyaluran(penyaluran.status, tujuan)
-        if (!cek.ok) throw new KesalahanAturan(cek.alasan)
-        penyaluran.status = tujuan
-      }
-
-      penyaluran.validasi = {
+      // Status transaksi TIDAK disentuh: pengawasan hanya menempelkan catatan.
+      penyaluran.pengawasan = {
         pengawasId: input.pengawasId,
         tanggal,
         hasil: input.hasil,
         catatan: input.catatan?.trim() || undefined,
       }
 
-      const urut = urutBerikut(db.validasi, 'validasi')
-      db.validasi.push({
-        id: `validasi-${pad(urut, 3)}`,
-        kode: `VAL/${tanggal.slice(0, 4)}/${pad(urut, 3)}`,
-        pengawasId: input.pengawasId,
-        targetTipe: 'penyaluran',
-        targetId: penyaluran.id,
-        hasil: input.hasil,
-        catatan: input.catatan?.trim() || undefined,
-        tanggal,
-        dibuatPada: sekarang(),
-      })
-
-      if (tujuan) {
-        tambahNotif(db, saatPenyaluranDivalidasi(penyaluran, konteksNotif(db)))
+      for (const t of input.temuan ?? []) {
+        catatTemuan(db, {
+          ...t,
+          sumber: 'penapisan',
+          sumberId: penyaluran.id,
+          objekTipe: 'pengecer',
+          objekId: penyaluran.pengecerId,
+          tanggal,
+        })
       }
+
       return penyaluran
     })
   },
 
-  async buatInspeksi(input) {
-    const temuan = input.temuan.map((t) => t.trim()).filter(Boolean)
-    if (temuan.length === 0) {
-      throw new KesalahanAturan('Isi minimal satu temuan hasil inspeksi.')
+  async buatPemeriksaan(input) {
+    if (input.administrasi.length === 0 && input.stok.length === 0) {
+      throw new KesalahanAturan('Isi minimal pemeriksaan stok atau kelengkapan administrasi.')
+    }
+    for (const h of input.harga) {
+      if (h.hargaJual < 0 || h.biayaTambahan < 0) {
+        throw new KesalahanAturan('Harga dan biaya tambahan tidak boleh negatif.')
+      }
+    }
+    for (const st of input.stok) {
+      if (st.fisikKg < 0) throw new KesalahanAturan('Stok fisik tidak boleh negatif.')
     }
 
     return terapkan((db) => {
-      const urut = urutBerikut(db.inspeksi, 'inspeksi')
-      const inspeksi: Inspeksi = {
-        id: `inspeksi-${pad(urut, 3)}`,
-        kode: `INS/${input.tanggal.slice(0, 4)}/${pad(urut, 3)}`,
+      const urut = urutBerikut(db.pemeriksaan, 'periksa')
+      const tahun = input.tanggal.slice(0, 4)
+      const bulan = input.tanggal.slice(5, 7)
+
+      const pemeriksaan: Pemeriksaan = {
+        id: `periksa-${pad(urut, 3)}`,
+        kode: `PRK/${tahun}/${pad(urut, 3)}`,
+        noBeritaAcara: `BAP/${tahun}/${bulan}/${pad(urut, 3)}`,
         pengawasId: input.pengawasId,
-        lokasiTipe: input.lokasiTipe,
-        lokasiId: input.lokasiId,
+        pendamping: input.pendamping.map((x) => x.trim()).filter(Boolean),
+        objekTipe: input.objekTipe,
+        objekId: input.objekId,
         tanggal: input.tanggal,
-        temuan,
-        kesesuaian: input.kesesuaian,
+        sampelPenyaluranIds: input.sampelPenyaluranIds,
+        stok: input.stok,
+        harga: input.harga,
+        penerima: input.penerima,
+        administrasi: input.administrasi,
+        // Diisi di bawah setelah temuan diturunkan.
+        kesimpulan: 'sesuai',
         catatan: input.catatan?.trim() || undefined,
+        ttdPengawas: input.ttdPengawas,
+        ttdObjek: input.ttdObjek,
         dibuatPada: sekarang(),
       }
-      db.inspeksi.push(inspeksi)
-      return inspeksi
+
+      const otomatis = temuanDariPemeriksaan(
+        pemeriksaan,
+        (id) => db.jenisPupuk.find((j) => j.id === id)?.nama ?? id,
+        (tipe, id) => namaObjek(db, tipe, id),
+      )
+      const semua: DraftTemuan[] = [...otomatis, ...input.temuanTambahan]
+      pemeriksaan.kesimpulan = kesimpulanOtomatis(semua)
+
+      db.pemeriksaan.push(pemeriksaan)
+
+      for (const t of semua) {
+        catatTemuan(db, {
+          ...t,
+          sumber: 'pemeriksaan',
+          sumberId: pemeriksaan.id,
+          objekTipe: input.objekTipe,
+          objekId: input.objekId,
+          tanggal: input.tanggal,
+        })
+      }
+
+      // Transaksi yang menjadi sampel uji petik ikut tercatat terperiksa.
+      for (const id of input.sampelPenyaluranIds) {
+        const trx = db.penyaluran.find((p) => p.id === id)
+        if (!trx) continue
+        trx.pengawasan = {
+          pengawasId: input.pengawasId,
+          tanggal: input.tanggal,
+          pemeriksaanId: pemeriksaan.id,
+          hasil: semua.length > 0 ? 'temuan' : 'sesuai',
+          catatan: `Uji petik pada pemeriksaan ${pemeriksaan.noBeritaAcara}.`,
+        }
+      }
+
+      tambahNotif(db, saatPemeriksaan(pemeriksaan, semua.length, konteksNotif(db)))
+      return pemeriksaan
     })
+  },
+
+  async buatTemuan(input) {
+    if (!input.uraian.trim()) throw new KesalahanAturan('Uraian temuan wajib diisi.')
+    return terapkan((db) => catatTemuan(db, input))
   },
 
   async buatTindakLanjut(input) {
     if (!input.judul.trim() || !input.isi.trim()) {
       throw new KesalahanAturan('Judul dan isi tindak lanjut wajib diisi.')
     }
+    if (input.tenggat < input.tanggal) {
+      throw new KesalahanAturan('Tenggat perbaikan tidak boleh mendahului tanggal terbit.')
+    }
 
     return terapkan((db) => {
+      const temuan = input.temuanIds.map((id) => {
+        const t = db.temuan.find((x) => x.id === id)
+        if (!t) throw new KesalahanAturan('Temuan yang dirujuk tidak ditemukan.')
+        if (t.status === 'selesai') {
+          throw new KesalahanAturan(`Temuan ${t.kode} sudah dinyatakan selesai.`)
+        }
+        return t
+      })
+
       const urut = urutBerikut(db.tindakLanjut, 'tindaklanjut')
       const tindak: TindakLanjut = {
         id: `tindaklanjut-${pad(urut, 3)}`,
@@ -423,15 +522,59 @@ export const localRepo: DataRepo = {
         jenis: input.jenis,
         sasaranTipe: input.sasaranTipe,
         sasaranId: input.sasaranId,
-        refTipe: input.refTipe,
-        refId: input.refId,
+        temuanIds: input.temuanIds,
         judul: input.judul.trim(),
         isi: input.isi.trim(),
         tanggal: input.tanggal,
+        tenggat: input.tenggat,
+        status: 'terbit',
         dibuatPada: sekarang(),
       }
+
       db.tindakLanjut.push(tindak)
+
+      // Temuan berhenti "terbuka" begitu ada rekomendasi yang menanganinya.
+      for (const t of temuan) {
+        t.status = 'ditindaklanjuti'
+        t.tindakLanjutId = tindak.id
+      }
+
       tambahNotif(db, saatTindakLanjut(tindak, konteksNotif(db)))
+      return tindak
+    })
+  },
+
+  async perbaruiTindakLanjut(id, input) {
+    return terapkan((db) => {
+      const tindak = db.tindakLanjut.find((t) => t.id === id)
+      if (!tindak) throw new KesalahanAturan('Tindak lanjut tidak ditemukan.')
+
+      const cek = cekTransisiTindakLanjut(tindak.status, input.status)
+      if (!cek.ok) throw new KesalahanAturan(cek.alasan)
+
+      if (input.status === 'selesai' && !input.buktiPelaksanaan?.trim()) {
+        throw new KesalahanAturan(
+          'Isi keterangan pelaksanaan sebagai bukti sebelum menyatakan selesai.',
+        )
+      }
+      if (input.status === 'eskalasi' && !input.eskalasiKe) {
+        throw new KesalahanAturan('Pilih instansi tujuan eskalasi.')
+      }
+
+      tindak.status = input.status
+      tindak.buktiPelaksanaan = input.buktiPelaksanaan?.trim() || tindak.buktiPelaksanaan
+      tindak.eskalasiKe = input.eskalasiKe ?? tindak.eskalasiKe
+
+      if (input.status === 'selesai') {
+        tindak.tanggalSelesai = sekarang().slice(0, 10)
+        // Lingkaran pengawasan baru tertutup di sini: temuannya ikut selesai.
+        for (const idTemuan of tindak.temuanIds) {
+          const t = db.temuan.find((x) => x.id === idTemuan)
+          if (t) t.status = 'selesai'
+        }
+      }
+
+      tambahNotif(db, saatTindakLanjutDiperbarui(tindak, konteksNotif(db)))
       return tindak
     })
   },

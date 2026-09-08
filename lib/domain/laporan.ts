@@ -7,7 +7,7 @@
  * untuk hal yang sama.
  */
 
-import { pengirimanDiterima, penyaluranKeluar } from './status'
+import { pengirimanDiterima, penyaluranKeluar, penyaluranSelesai } from './status'
 import { hitungStokPengecer, jumlahDiterima } from './stok'
 import type { Database } from './types'
 
@@ -21,8 +21,13 @@ export interface RingkasanDistribusi {
   rasioSerapan: number
   menungguKonfirmasiKios: number
   menungguKonfirmasiPoktan: number
-  menungguValidasi: number
-  bermasalah: number
+  /** Transaksi yang penerimanya menyatakan tidak sesuai. */
+  disanggah: number
+  /** Transaksi selesai yang sudah tersentuh telaah atau pemeriksaan. */
+  diperiksa: number
+  /** Bagian transaksi selesai yang sudah diperiksa (0..1) — uji petik. */
+  rasioCakupanPengawasan: number
+  temuanTerbuka: number
 }
 
 export interface FilterLaporan {
@@ -80,8 +85,9 @@ export function ringkasanDistribusi(
 
   let disalurkanKg = 0
   let menungguKonfirmasiPoktan = 0
-  let menungguValidasi = 0
-  let bermasalah = 0
+  let disanggah = 0
+  let selesai = 0
+  let diperiksa = 0
 
   for (const p of db.penyaluran) {
     if (!kios.has(p.pengecerId)) continue
@@ -89,9 +95,20 @@ export function ringkasanDistribusi(
       for (const i of p.items) disalurkanKg += i.jumlahKg
     }
     if (p.status === 'disalurkan') menungguKonfirmasiPoktan++
-    if (p.status === 'dikonfirmasi') menungguValidasi++
-    if (p.status === 'bermasalah') bermasalah++
+    if (p.status === 'disanggah') disanggah++
+    if (penyaluranSelesai(p.status)) {
+      selesai++
+      if (p.pengawasan) diperiksa++
+    }
   }
+
+  // Temuan tidak punya kolom kios; disaring lewat objek yang dikenainya.
+  // "Terbuka" di sini berarti benar-benar belum ada tindak lanjut yang
+  // menanganinya — bukan sekadar belum selesai.
+  const temuanTerbuka = db.temuan.filter(
+    (t) =>
+      t.status === 'terbuka' && (t.objekTipe !== 'pengecer' || kios.has(t.objekId)),
+  ).length
 
   let sisaStokKg = 0
   for (const id of kios) {
@@ -109,8 +126,10 @@ export function ringkasanDistribusi(
     rasioSerapan: alokasiKg > 0 ? disalurkanKg / alokasiKg : 0,
     menungguKonfirmasiKios,
     menungguKonfirmasiPoktan,
-    menungguValidasi,
-    bermasalah,
+    disanggah,
+    diperiksa,
+    rasioCakupanPengawasan: selesai > 0 ? diperiksa / selesai : 0,
+    temuanTerbuka,
   }
 }
 
@@ -179,8 +198,11 @@ export interface KepatuhanPengecer {
   totalPenyaluran: number
   berbuktiLengkap: number
   dikonfirmasiPoktan: number
-  tervalidasi: number
-  bermasalah: number
+  /** Transaksi kios ini yang sudah tersentuh pengawasan. */
+  diperiksa: number
+  disanggah: number
+  /** Temuan pengawasan atas kios ini yang belum dinyatakan selesai. */
+  temuanBelumTuntas: number
   selisihPenerimaan: number
   /** Bagian penyaluran yang punya bukti dan konfirmasi poktan (0..1). */
   rasioKepatuhan: number
@@ -203,8 +225,14 @@ export function kepatuhanPengecer(db: Database): KepatuhanPengecer[] {
         totalPenyaluran: milik.length,
         berbuktiLengkap,
         dikonfirmasiPoktan,
-        tervalidasi: milik.filter((p) => p.status === 'divalidasi').length,
-        bermasalah: milik.filter((p) => p.status === 'bermasalah').length,
+        diperiksa: milik.filter((p) => Boolean(p.pengawasan)).length,
+        disanggah: milik.filter((p) => p.status === 'disanggah').length,
+        temuanBelumTuntas: db.temuan.filter(
+          (t) =>
+            t.objekTipe === 'pengecer' &&
+            t.objekId === kios.id &&
+            t.status !== 'selesai',
+        ).length,
         selisihPenerimaan: db.pengiriman.filter(
           (p) => p.pengecerId === kios.id && p.status === 'selisih',
         ).length,

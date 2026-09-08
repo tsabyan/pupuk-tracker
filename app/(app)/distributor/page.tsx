@@ -57,7 +57,7 @@ export default function DashboardDistributor() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_19rem]">
+      <div className="grid *:min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="grid content-start gap-4 sm:grid-cols-2">
           <StatCard
             label="Alokasi periode berjalan"

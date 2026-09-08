@@ -66,7 +66,7 @@ describe('stok pengecer', () => {
     const baris = hitungStokPengecer(
       KIOS,
       [kirim('dikonfirmasi', 1000)],
-      [salur('divalidasi', 250)],
+      [salur('dikonfirmasi', 250)],
     )
     expect(baris).toEqual([{ jenisPupukId: UREA, masukKg: 1000, keluarKg: 250, sisaKg: 750 }])
   })
@@ -95,7 +95,7 @@ describe('sisa hak RDKK', () => {
   })
 
   it('tidak pernah menghasilkan sisa negatif', () => {
-    const hasil = hitungSisaHak(rdkk, [salur('divalidasi', 900), salur('divalidasi', 400)])
+    const hasil = hitungSisaHak(rdkk, [salur('dikonfirmasi', 900), salur('dikonfirmasi', 400)])
     expect(hasil[0].sisaKg).toBe(0)
   })
 

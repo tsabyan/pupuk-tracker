@@ -6,6 +6,7 @@
  */
 
 import type {
+  Pemeriksaan,
   Pengiriman,
   Penyaluran,
   Role,
@@ -13,6 +14,7 @@ import type {
   TipeNotifikasi,
   User,
 } from './types'
+import { tanggal as formatTanggal } from './format'
 
 export interface DraftNotifikasi {
   untukUserId: string
@@ -97,7 +99,7 @@ export function saatPengirimanDikonfirmasi(
       tipe: p.status === 'selisih' ? 'pengiriman_selisih' : 'pengiriman_ditolak',
       judul: 'Anomali pengiriman terdeteksi',
       pesan: `Faktur ${p.noFaktur} ke ${nama} berstatus ${p.status}. Perlu verifikasi.`,
-      tautan: `/kp3/validasi`,
+      tautan: `/kp3/objek`,
     }),
   ]
 }
@@ -119,54 +121,77 @@ export function saatPenyaluranDisalurkan(
   })
 }
 
-/** Ketua poktan menandatangani — flowchart Kelompok Tani #3. */
+/**
+ * Ketua poktan menandatangani penerimaan — di sini transaksi tuntas.
+ *
+ * Pengawas KP3 sengaja TIDAK diberi tahu untuk penerimaan yang wajar.
+ * Memberi kabar setiap transaksi berarti mengubur satu komisi kabupaten
+ * di bawah ribuan pesan per musim; yang perlu sampai ke pengawas hanya
+ * transaksi yang disanggah penerimanya.
+ */
 export function saatPenyaluranDikonfirmasi(
   p: Penyaluran,
   ctx: KonteksNotif,
 ): DraftNotifikasi[] {
   const poktan = ctx.namaPoktan(p.poktanId)
+  const disanggah = p.status === 'disanggah'
+
+  const kePengecer = untukSemua(ctx.penggunaDari('pengecer', p.pengecerId), {
+    tipe: disanggah ? 'penyaluran_disanggah' : 'penyaluran_dikonfirmasi',
+    judul: disanggah ? 'Penyaluran disanggah kelompok tani' : 'Penyaluran dikonfirmasi',
+    pesan: disanggah
+      ? `${poktan} menyatakan penerimaan transaksi ${p.noTransaksi} tidak sesuai. ${p.konfirmasi?.catatan ?? ''}`.trim()
+      : `${poktan} sudah mengonfirmasi penerimaan transaksi ${p.noTransaksi}.`,
+    tautan: `/pengecer/penyaluran/${p.id}`,
+  })
+
+  if (!disanggah) return kePengecer
+
   return [
-    ...untukSemua(ctx.penggunaDari('pengecer', p.pengecerId), {
-      tipe: 'penyaluran_dikonfirmasi',
-      judul: 'Penyaluran dikonfirmasi',
-      pesan: `${poktan} sudah mengonfirmasi penerimaan transaksi ${p.noTransaksi}.`,
-      tautan: `/pengecer/penyaluran/${p.id}`,
-    }),
+    ...kePengecer,
     ...untukSemua(ctx.semuaPengawas(), {
-      tipe: 'penyaluran_dikonfirmasi',
-      judul: 'Transaksi menunggu validasi',
-      pesan: `Penyaluran ${p.noTransaksi} ke ${poktan} siap divalidasi.`,
-      tautan: `/kp3/validasi/${p.id}`,
+      tipe: 'penyaluran_disanggah',
+      judul: 'Sanggahan kelompok tani',
+      pesan: `${poktan} menyanggah transaksi ${p.noTransaksi} dari ${ctx.namaPengecer(p.pengecerId)}. Layak dijadikan objek pemeriksaan.`,
+      tautan: `/kp3/objek/${p.id}`,
     }),
   ]
 }
 
-/** Pengawas KP3 memutuskan hasil validasi — flowchart Pengawas KP3 #2. */
-export function saatPenyaluranDivalidasi(
-  p: Penyaluran,
+/* ------------------------------------------------------------------ */
+/* Pemeriksaan lapangan                                                */
+/* ------------------------------------------------------------------ */
+
+/** Peran yang mewakili objek pemeriksaan, bila ada penggunanya di aplikasi. */
+function roleObjek(tipe: Pemeriksaan['objekTipe']): Role | null {
+  return tipe === 'petani' ? null : tipe
+}
+
+/**
+ * Berita acara pemeriksaan ditutup.
+ *
+ * Pihak yang diperiksa selalu diberi salinan hasilnya — itu bagian dari
+ * berita acara, bukan kemurahan hati sistem.
+ */
+export function saatPemeriksaan(
+  p: Pemeriksaan,
+  jumlahTemuan: number,
   ctx: KonteksNotif,
 ): DraftNotifikasi[] {
-  const bermasalah = p.status === 'bermasalah'
-  const isi = {
-    tipe: (bermasalah
-      ? 'penyaluran_bermasalah'
-      : 'penyaluran_divalidasi') as TipeNotifikasi,
-    judul: bermasalah ? 'Penyaluran ditandai bermasalah' : 'Penyaluran tervalidasi',
-    pesan: bermasalah
-      ? `Pengawas KP3 menemukan ketidaksesuaian pada transaksi ${p.noTransaksi}. ${p.validasi?.catatan ?? ''}`.trim()
-      : `Transaksi ${p.noTransaksi} sudah divalidasi Pengawas KP3.`,
-    tautan: `/pengecer/penyaluran/${p.id}`,
-  }
+  const role = roleObjek(p.objekTipe)
+  if (!role) return []
 
-  const penerima = [
-    ...untukSemua(ctx.penggunaDari('pengecer', p.pengecerId), isi),
-    ...untukSemua(ctx.penggunaDari('poktan', p.poktanId), {
-      ...isi,
-      tautan: `/poktan/penerimaan/${p.id}`,
-    }),
-  ]
+  const ringkas =
+    jumlahTemuan > 0
+      ? `${jumlahTemuan} temuan dicatat pada berita acara ${p.noBeritaAcara}.`
+      : `Tidak ada temuan. Berita acara ${p.noBeritaAcara} sudah diterbitkan.`
 
-  return penerima
+  return untukSemua(ctx.penggunaDari(role, p.objekId), {
+    tipe: jumlahTemuan > 0 ? 'temuan_pengawasan' : 'hasil_pemeriksaan',
+    judul: jumlahTemuan > 0 ? 'Temuan hasil pemeriksaan KP3' : 'Hasil pemeriksaan KP3',
+    pesan: ringkas,
+    tautan: '/notifikasi',
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -185,17 +210,49 @@ export function saatTindakLanjut(
         ? 'pengecer'
         : 'poktan'
 
-  const label =
-    t.jenis === 'teguran'
-      ? 'Teguran dari Pengawas KP3'
-      : t.jenis === 'rekomendasi'
-        ? 'Rekomendasi dari Pengawas KP3'
-        : 'Penghargaan dari Pengawas KP3'
+  const label = {
+    teguran: 'Teguran dari Pengawas KP3',
+    rekomendasi: 'Rekomendasi dari Pengawas KP3',
+    pembinaan: 'Pembinaan dari Pengawas KP3',
+    penghargaan: 'Penghargaan dari Pengawas KP3',
+  }[t.jenis]
+
+  const tenggat =
+    t.jenis === 'penghargaan'
+      ? ''
+      : ` Batas waktu perbaikan: ${formatTanggal(t.tenggat)}.`
 
   return untukSemua(ctx.penggunaDari(role, t.sasaranId), {
     tipe: 'tindak_lanjut',
     judul: label,
-    pesan: t.judul,
+    pesan: `${t.judul}.${tenggat}`,
+    tautan: '/notifikasi',
+  })
+}
+
+/** Pengawas memindahkan status pelaksanaan tindak lanjut. */
+export function saatTindakLanjutDiperbarui(
+  t: TindakLanjut,
+  ctx: KonteksNotif,
+): DraftNotifikasi[] {
+  const role: Role =
+    t.sasaranTipe === 'distributor'
+      ? 'distributor'
+      : t.sasaranTipe === 'pengecer'
+        ? 'pengecer'
+        : 'poktan'
+
+  const pesan = {
+    terbit: `${t.kode} kembali berstatus terbit.`,
+    dalam_proses: `${t.kode} tercatat sedang dikerjakan.`,
+    selesai: `${t.kode} dinyatakan selesai dan diverifikasi pengawas.`,
+    eskalasi: `${t.kode} dieskalasi karena belum ditindaklanjuti.`,
+  }[t.status]
+
+  return untukSemua(ctx.penggunaDari(role, t.sasaranId), {
+    tipe: t.status === 'eskalasi' ? 'tindak_lanjut_jatuh_tempo' : 'tindak_lanjut',
+    judul: 'Perkembangan tindak lanjut',
+    pesan,
     tautan: '/notifikasi',
   })
 }

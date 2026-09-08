@@ -36,7 +36,7 @@ export default function HalamanLogin() {
 
   return (
     <div className="min-h-dvh bg-kertas">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14 lg:py-20">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 *:min-w-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-14 lg:py-20">
         <section className="lg:pt-6">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(16,24,40,0.05)] ring-1 ring-black/[0.05]">
             <span className="size-1.5 rounded-full bg-hijau" />
@@ -72,7 +72,10 @@ export default function HalamanLogin() {
               tidak diperlukan kata sandi.
             </p>
 
-            <div className="mt-5 grid gap-3">
+            {/* grid-cols-1 penting: tanpa template kolom, grid membentuk kolom
+                implisit seukuran max-content sehingga kartu peran melebar
+                mengikuti baris teks terpanjang dan menembus tepi layar. */}
+            <div className="mt-5 grid grid-cols-1 gap-3">
               {URUTAN_ROLE.map((role) => {
                 const tema = TEMA[role]
                 const akun = db.users.find((u) => u.id === AKUN_DEMO[role])

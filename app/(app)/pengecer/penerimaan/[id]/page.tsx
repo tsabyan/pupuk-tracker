@@ -115,7 +115,7 @@ export default function KonfirmasiPenerimaan() {
         aksi={<BadgePengiriman status={pengiriman.status} />}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-5">
           <Card>
             <CardHeader
@@ -130,7 +130,7 @@ export default function KonfirmasiPenerimaan() {
               <Tabel>
                 <thead>
                   <tr>
-                    <Th>Jenis pupuk</Th>
+                    <Th className="min-w-40">Jenis pupuk</Th>
                     <Th numerik>Faktur</Th>
                     <Th numerik className="w-40">
                       Diterima
@@ -164,7 +164,7 @@ export default function KonfirmasiPenerimaan() {
                                   [i.jenisPupukId]: Math.max(0, Number(e.target.value) || 0),
                                 }))
                               }
-                              className="text-right"
+                              className="min-w-24 text-right"
                             />
                           ) : (
                             f.kg(terima)

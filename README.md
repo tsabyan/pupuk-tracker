@@ -5,8 +5,14 @@ menghubungkan empat pihak dalam satu rantai data:
 
 **Distributor → Pengecer Resmi → Kelompok Tani → Pengawas KP3**
 
-Setiap penyerahan pupuk dikonfirmasi kedua belah pihak, dibatasi hak RDKK
-kelompok tani dan stok kios yang benar-benar ada, lalu divalidasi Pengawas KP3.
+Setiap penyerahan pupuk dikonfirmasi kedua belah pihak dan dibatasi hak RDKK
+kelompok tani serta stok kios yang benar-benar ada. Di atas rantai itu,
+Pengawas KP3 menjalankan pengawasan uji petik: penapisan tujuh tepat,
+pemeriksaan lapangan berbentuk berita acara, register temuan, dan tindak
+lanjut yang dilacak sampai tuntas.
+
+Pengawas **tidak** menjadi gerbang persetujuan. Penyaluran sah begitu kios dan
+kelompok tani sepakat; pengawasan bekerja atas transaksi yang sudah selesai.
 
 ## Menjalankan
 
@@ -20,8 +26,8 @@ diperlukan kata sandi — ini lingkungan demo dengan data sintetis yang tersimpa
 di browser.
 
 Untuk penguji atau pemangku kepentingan yang baru pertama kali membuka: mulai
-dari **`/petunjuk`**. Halaman itu memandu alur uji coba enam tahap, merinci use
-case tiap peran, dan menunjukkan pengujian batas yang layak dicoba.
+dari **`/petunjuk`**. Halaman itu memandu alur uji coba delapan tahap, merinci
+use case tiap peran, dan menunjukkan pengujian batas yang layak dicoba.
 
 ## Dokumentasi
 
@@ -29,7 +35,7 @@ case tiap peran, dan menunjukkan pengujian batas yang layak dicoba.
 |---|---|
 | `/petunjuk` (di dalam aplikasi) | panduan uji coba untuk klien, lengkap dengan tombol pintas ke tiap layar |
 | [docs/DEMO.md](docs/DEMO.md) | skrip presentasi alur penuh, sekitar 8 menit |
-| [docs/ALUR.md](docs/ALUR.md) | peta 18 langkah diagram alur ke layar aplikasi |
+| [docs/ALUR.md](docs/ALUR.md) | peta langkah diagram alur ke layar aplikasi |
 | [docs/ERD.md](docs/ERD.md) | rancangan tabel sebagai blueprint migrasi Laravel |
 | [AGENTS.md](AGENTS.md) | aturan arsitektur dan konvensi kode |
 

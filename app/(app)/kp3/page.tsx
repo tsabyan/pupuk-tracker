@@ -42,8 +42,10 @@ export default function MonitoringKp3() {
       aktivitas: [...penyaluran, ...pengiriman]
         .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
         .slice(0, 10),
+      // Yang perlu perhatian pengawas: sanggahan penerima dan transaksi
+      // yang pemeriksaannya menghasilkan temuan.
       anomali: db.penyaluran
-        .filter((p) => p.status === 'bermasalah' || p.konfirmasi?.kesesuaian === 'tidak_sesuai')
+        .filter((p) => p.status === 'disanggah' || p.pengawasan?.hasil === 'temuan')
         .sort((a, b) => b.tanggal.localeCompare(a.tanggal)),
     }
   }, [db])
@@ -65,31 +67,33 @@ export default function MonitoringKp3() {
         aksi={
           <>
             <TombolTautan href="/kp3/laporan">Laporan</TombolTautan>
-            <TombolTautan href="/kp3/validasi" varian="utama">
-              Antrian validasi
+            <TombolTautan href="/kp3/objek" varian="utama">
+              Objek pengawasan
             </TombolTautan>
           </>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_19rem]">
+      <div className="grid *:min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="grid content-start gap-4 sm:grid-cols-2">
           <StatCard
-            label="Menunggu validasi"
-            nilai={f.angka(ringkas.menungguValidasi)}
-            satuan="transaksi"
-            ikon="ShieldCheck"
+            label="Cakupan pengawasan"
+            nilai={f.persen(ringkas.rasioCakupanPengawasan, 0)}
+            satuan={`${f.angka(ringkas.diperiksa)} transaksi`}
+            ikon="ScanSearch"
             aksen="biru"
-            keterangan="Sudah dikonfirmasi kelompok tani"
+            keterangan="Uji petik atas transaksi yang sudah tuntas"
           />
           <StatCard
-            label="Transaksi bermasalah"
-            nilai={f.angka(ringkas.bermasalah)}
-            satuan="transaksi"
+            label="Temuan terbuka"
+            nilai={f.angka(ringkas.temuanTerbuka)}
+            satuan="temuan"
             ikon="AlertTriangle"
             aksen="merah"
             keterangan={
-              ringkas.bermasalah > 0 ? 'Perlu tindak lanjut' : 'Tidak ada temuan aktif'
+              ringkas.temuanTerbuka > 0
+                ? 'Belum ada tindak lanjut yang menanganinya'
+                : 'Seluruh temuan sudah ditangani'
             }
           />
           <StatCard
@@ -101,12 +105,12 @@ export default function MonitoringKp3() {
             keterangan="Barang belum tercatat masuk gudang"
           />
           <StatCard
-            label="Selisih penerimaan"
-            nilai={f.angka(db.pengiriman.filter((p) => p.status === 'selisih').length)}
-            satuan="faktur"
+            label="Disanggah kelompok tani"
+            nilai={f.angka(ringkas.disanggah)}
+            satuan="transaksi"
             ikon="Scale"
             aksen="ungu"
-            keterangan="Jumlah terima berbeda dari faktur"
+            keterangan="Penerima menyatakan tidak sesuai"
           />
         </div>
 
@@ -155,8 +159,8 @@ export default function MonitoringKp3() {
         {bagian === 'perhatian' ? (
           anomali.length === 0 ? (
             <Kosong
-              judul="Tidak ada transaksi bermasalah"
-              keterangan="Semua penyaluran sesuai dan tidak ada keberatan dari kelompok tani."
+              judul="Tidak ada transaksi yang perlu perhatian"
+              keterangan="Tidak ada sanggahan penerima maupun temuan pada transaksi yang sudah diperiksa."
             />
           ) : (
             <TabelWadah>
@@ -175,7 +179,7 @@ export default function MonitoringKp3() {
                     <Tr key={p.id}>
                       <Td>
                         <Link
-                          href={`/kp3/validasi/${p.id}`}
+                          href={`/kp3/objek/${p.id}`}
                           className="font-medium text-tinta hover:underline"
                         >
                           {p.noTransaksi}

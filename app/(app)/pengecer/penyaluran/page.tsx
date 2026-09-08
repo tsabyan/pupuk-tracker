@@ -15,9 +15,8 @@ import { useDb, usePencari, useSesi } from '@/lib/hooks'
 const SARINGAN: Array<{ nilai: StatusPenyaluran | 'semua'; label: string }> = [
   { nilai: 'semua', label: 'Semua status' },
   { nilai: 'disalurkan', label: 'Menunggu konfirmasi poktan' },
-  { nilai: 'dikonfirmasi', label: 'Dikonfirmasi poktan' },
-  { nilai: 'divalidasi', label: 'Tervalidasi KP3' },
-  { nilai: 'bermasalah', label: 'Bermasalah' },
+  { nilai: 'dikonfirmasi', label: 'Selesai' },
+  { nilai: 'disanggah', label: 'Disanggah poktan' },
 ]
 
 export default function DaftarPenyaluran() {

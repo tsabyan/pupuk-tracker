@@ -14,7 +14,7 @@ import {
 import { buatTransaksi } from './transaksi'
 
 /** Versi skema data lokal. Naikkan bila bentuk `Database` berubah. */
-export const VERSI_DATA = 1
+export const VERSI_DATA = 2
 
 /** Basis data demo lengkap. Deterministik — hasilnya selalu sama. */
 export function buatDatabase(): Database {

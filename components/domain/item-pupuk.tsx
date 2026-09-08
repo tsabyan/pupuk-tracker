@@ -50,7 +50,7 @@ export function EditorItemPupuk({
       <Tabel>
         <thead>
           <tr>
-            <Th>Jenis pupuk</Th>
+            <Th className="min-w-44">Jenis pupuk</Th>
             {tampilkanHarga ? <Th numerik>HET / kg</Th> : null}
             <Th numerik className="w-40">
               Jumlah (kg)
@@ -88,7 +88,10 @@ export function EditorItemPupuk({
                     placeholder="0"
                     aria-label={`Jumlah ${jp.nama}`}
                     onChange={(e) => set(jp.id, Math.max(0, Number(e.target.value) || 0))}
-                    className={cn('text-right', lebih && 'border-rose-400 text-rose-700')}
+                    className={cn(
+                      'min-w-24 text-right',
+                      lebih && 'ring-merah/60 focus:ring-merah',
+                    )}
                   />
                 </Td>
                 {tampilkanHarga ? (

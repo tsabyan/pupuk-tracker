@@ -6,7 +6,11 @@
  * layar role berikutnya. Semua aturan perpindahan tinggal di file ini.
  */
 
-import type { StatusPengiriman, StatusPenyaluran } from './types'
+import type {
+  StatusPengiriman,
+  StatusPenyaluran,
+  StatusTindakLanjut,
+} from './types'
 
 export type Tone = 'netral' | 'info' | 'sukses' | 'peringatan' | 'bahaya'
 
@@ -65,12 +69,22 @@ export function pengirimanDiterima(status: StatusPengiriman): boolean {
 /* Penyaluran: Pengecer → Kelompok Tani                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Penyaluran berhenti pada pernyataan kelompok tani, bukan pada
+ * persetujuan pengawas: `dikonfirmasi` bila sesuai, `disanggah` bila
+ * penerima menyatakan ada yang tidak sesuai. Keduanya status akhir.
+ *
+ * KP3 sengaja tidak punya transisi di sini. Menaruh pengawas sebagai
+ * gerbang akan membuat setiap transaksi menggantung menunggu satu komisi
+ * kabupaten — padahal penyaluran sudah sah begitu kedua pihak sepakat,
+ * dan pengawasan bekerja dengan uji petik atas transaksi yang sudah
+ * selesai.
+ */
 export const TRANSISI_PENYALURAN: Record<StatusPenyaluran, StatusPenyaluran[]> = {
   draft: ['disalurkan'],
-  disalurkan: ['dikonfirmasi'],
-  dikonfirmasi: ['divalidasi', 'bermasalah'],
-  divalidasi: [],
-  bermasalah: [],
+  disalurkan: ['dikonfirmasi', 'disanggah'],
+  dikonfirmasi: [],
+  disanggah: [],
 }
 
 export const STATUS_PENYALURAN: Record<StatusPenyaluran, StatusMeta> = {
@@ -85,25 +99,79 @@ export const STATUS_PENYALURAN: Record<StatusPenyaluran, StatusMeta> = {
     deskripsi: 'Pupuk sudah diserahkan, menunggu konfirmasi ketua kelompok tani.',
   },
   dikonfirmasi: {
-    label: 'Dikonfirmasi Poktan',
+    label: 'Selesai',
     tone: 'sukses',
-    deskripsi: 'Ketua kelompok tani sudah menandatangani penerimaan.',
+    deskripsi:
+      'Ketua kelompok tani menandatangani penerimaan dan menyatakan sesuai. Transaksi tuntas.',
   },
-  divalidasi: {
-    label: 'Tervalidasi KP3',
-    tone: 'sukses',
-    deskripsi: 'Pengawas KP3 sudah memvalidasi transaksi ini.',
-  },
-  bermasalah: {
-    label: 'Bermasalah',
+  disanggah: {
+    label: 'Disanggah Poktan',
     tone: 'bahaya',
-    deskripsi: 'Pengawas KP3 menemukan ketidaksesuaian pada transaksi ini.',
+    deskripsi:
+      'Penerimaan tercatat, tetapi kelompok tani menyatakan ada yang tidak sesuai. Menjadi bahan pengawasan.',
   },
 }
 
 /** Status yang berarti barang sudah keluar dari gudang pengecer. */
 export function penyaluranKeluar(status: StatusPenyaluran): boolean {
   return status !== 'draft'
+}
+
+/** Status yang berarti transaksi sudah tuntas antara kios dan poktan. */
+export function penyaluranSelesai(status: StatusPenyaluran): boolean {
+  return status === 'dikonfirmasi' || status === 'disanggah'
+}
+
+/* ------------------------------------------------------------------ */
+/* Tindak lanjut hasil pengawasan                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Rekomendasi tidak berhenti pada penerbitan surat. Tanpa status
+ * pelaksanaan, tidak ada bukti bahwa perbaikannya benar-benar terjadi —
+ * dan itulah yang dinilai pada maturitas SPIP.
+ */
+export const TRANSISI_TINDAK_LANJUT: Record<
+  StatusTindakLanjut,
+  StatusTindakLanjut[]
+> = {
+  terbit: ['dalam_proses', 'selesai', 'eskalasi'],
+  dalam_proses: ['selesai', 'eskalasi'],
+  selesai: [],
+  eskalasi: ['selesai'],
+}
+
+export const STATUS_TINDAK_LANJUT: Record<StatusTindakLanjut, StatusMeta> = {
+  terbit: {
+    label: 'Terbit',
+    tone: 'info',
+    deskripsi: 'Sudah dikirim ke pihak sasaran, belum ada tanggapan.',
+  },
+  dalam_proses: {
+    label: 'Dalam Proses',
+    tone: 'peringatan',
+    deskripsi: 'Pihak sasaran sedang mengerjakan perbaikan yang diminta.',
+  },
+  selesai: {
+    label: 'Selesai',
+    tone: 'sukses',
+    deskripsi: 'Perbaikan terlaksana dan diverifikasi pengawas.',
+  },
+  eskalasi: {
+    label: 'Dieskalasi',
+    tone: 'bahaya',
+    deskripsi: 'Tidak ditindaklanjuti atau di luar kewenangan KP3, diteruskan ke instansi lain.',
+  },
+}
+
+/** Tindak lanjut yang melewati tenggat tetapi belum tuntas. */
+export function tindakLanjutTerlambat(
+  status: StatusTindakLanjut,
+  tenggat: string,
+  hariIni: string,
+): boolean {
+  if (status === 'selesai') return false
+  return tenggat < hariIni
 }
 
 /* ------------------------------------------------------------------ */
@@ -142,4 +210,11 @@ export function cekTransisiPenyaluran(
   ke: StatusPenyaluran,
 ): HasilTransisi {
   return periksa(TRANSISI_PENYALURAN, STATUS_PENYALURAN, dari, ke)
+}
+
+export function cekTransisiTindakLanjut(
+  dari: StatusTindakLanjut,
+  ke: StatusTindakLanjut,
+): HasilTransisi {
+  return periksa(TRANSISI_TINDAK_LANJUT, STATUS_TINDAK_LANJUT, dari, ke)
 }

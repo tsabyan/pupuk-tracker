@@ -19,9 +19,11 @@ const NADA: Record<TipeNotifikasi, 'info' | 'sukses' | 'peringatan' | 'bahaya'> 
   pengiriman_ditolak: 'bahaya',
   penyaluran_disalurkan: 'info',
   penyaluran_dikonfirmasi: 'sukses',
-  penyaluran_divalidasi: 'sukses',
-  penyaluran_bermasalah: 'bahaya',
+  penyaluran_disanggah: 'bahaya',
+  hasil_pemeriksaan: 'sukses',
+  temuan_pengawasan: 'bahaya',
   tindak_lanjut: 'peringatan',
+  tindak_lanjut_jatuh_tempo: 'bahaya',
 }
 
 const LABEL: Record<TipeNotifikasi, string> = {
@@ -31,9 +33,11 @@ const LABEL: Record<TipeNotifikasi, string> = {
   pengiriman_ditolak: 'Penolakan',
   penyaluran_disalurkan: 'Penyaluran',
   penyaluran_dikonfirmasi: 'Konfirmasi',
-  penyaluran_divalidasi: 'Validasi',
-  penyaluran_bermasalah: 'Bermasalah',
+  penyaluran_disanggah: 'Sanggahan',
+  hasil_pemeriksaan: 'Pemeriksaan',
+  temuan_pengawasan: 'Temuan',
   tindak_lanjut: 'Tindak lanjut',
+  tindak_lanjut_jatuh_tempo: 'Jatuh tempo',
 }
 
 export default function HalamanNotifikasi() {
@@ -76,7 +80,7 @@ export default function HalamanNotifikasi() {
         {tampil.length === 0 ? (
           <Kosong
             judul={hanyaBelumDibaca ? 'Tidak ada yang belum dibaca' : 'Belum ada notifikasi'}
-            keterangan="Notifikasi muncul saat ada pengiriman, penerimaan, konfirmasi, atau validasi baru."
+            keterangan="Notifikasi muncul saat ada pengiriman, penerimaan, konfirmasi, hasil pemeriksaan, atau tindak lanjut baru."
           />
         ) : (
           <ul className="divide-y divide-neutral-100">
