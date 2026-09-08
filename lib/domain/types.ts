@@ -183,12 +183,17 @@ export interface Pengiriman {
 /* Penyaluran (Pengecer → Kelompok Tani)                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Daur hidup penyaluran sepenuhnya milik dua pihak transaksi: kios yang
+ * menyerahkan dan kelompok tani yang menerima. Pengawas KP3 TIDAK ada di
+ * sini — pengawasan berjalan setelah transaksi selesai dan tidak pernah
+ * menahannya (lihat `CatatanPengawasan`).
+ */
 export type StatusPenyaluran =
   | 'draft'
   | 'disalurkan'
   | 'dikonfirmasi'
-  | 'divalidasi'
-  | 'bermasalah'
+  | 'disanggah'
 
 export interface ItemPenyaluran extends ItemPupuk {
   het: number
@@ -218,15 +223,6 @@ export interface KonfirmasiPoktan {
   catatan?: string
 }
 
-export type HasilValidasi = 'valid' | 'perlu_verifikasi' | 'tidak_valid'
-
-export interface HasilValidasiPenyaluran {
-  pengawasId: string
-  tanggal: string
-  hasil: HasilValidasi
-  catatan?: string
-}
-
 export interface Penyaluran {
   id: string
   kode: string
@@ -241,7 +237,8 @@ export interface Penyaluran {
   status: StatusPenyaluran
   bukti?: BuktiPenyaluran
   konfirmasi?: KonfirmasiPoktan
-  validasi?: HasilValidasiPenyaluran
+  /** Jejak pengawasan KP3 — anotasi, bukan bagian dari daur hidup transaksi. */
+  pengawasan?: CatatanPengawasan
   dibuatPada: string
 }
 
@@ -267,38 +264,173 @@ export interface LaporanPemanfaatan {
 /* Pengawasan (KP3)                                                    */
 /* ------------------------------------------------------------------ */
 
-export type TargetPengawasan = 'pengiriman' | 'penyaluran'
+/**
+ * Objek yang dapat diperiksa KP3. Bukan hanya kios: pemeriksaan juga
+ * menyasar gudang distributor, kelompok tani, dan petani penerima.
+ */
+export type ObjekPengawasan = 'distributor' | 'pengecer' | 'poktan' | 'petani'
 
-export interface Validasi {
+/**
+ * Hasil pengawasan yang menempel pada satu transaksi penyaluran.
+ *
+ * Ini catatan telaah, bukan persetujuan: transaksi sudah sah sejak
+ * dikonfirmasi kelompok tani. Karena KP3 bekerja dengan uji petik,
+ * sebagian besar transaksi memang tidak akan pernah punya catatan ini —
+ * dan itu bukan tunggakan.
+ */
+export interface CatatanPengawasan {
+  pengawasId: string
+  tanggal: string
+  /** Terisi bila telaah dilakukan dalam rangka pemeriksaan lapangan. */
+  pemeriksaanId?: string
+  hasil: 'sesuai' | 'temuan'
+  catatan?: string
+}
+
+/**
+ * Kerangka "tujuh tepat" penyaluran pupuk bersubsidi. Dipakai sebagai
+ * kategori baku temuan supaya rekapitulasi lintas periode bisa dibanding.
+ */
+export type AspekTepat =
+  | 'jenis'
+  | 'jumlah'
+  | 'harga'
+  | 'tempat'
+  | 'waktu'
+  | 'penerima'
+  | 'ketentuan'
+
+/* --- Berita acara pemeriksaan --------------------------------------- */
+
+export type KesimpulanPemeriksaan = 'sesuai' | 'sebagian' | 'tidak_sesuai'
+
+/** Butir uji stok: fisik di gudang dibandingkan catatan sistem. */
+export interface PeriksaStok {
+  jenisPupukId: string
+  /** Angka sistem saat pemeriksaan — dihitung, tidak diketik pengawas. */
+  sistemKg: number
+  /** Hasil hitung fisik di gudang. */
+  fisikKg: number
+}
+
+/**
+ * Butir uji harga. Harga jual diisi dari hasil wawancara petani atau
+ * pemeriksaan struk, bukan dari data transaksi — kios yang menjual di
+ * atas HET tidak akan melaporkannya sendiri ke sistem.
+ */
+export interface PeriksaHarga {
+  jenisPupukId: string
+  het: number
+  hargaJual: number
+  /**
+   * Pungutan per satuan di luar harga pupuk (ongkos angkut, biaya
+   * administrasi). Dipisah dari `hargaJual` supaya modus "harga sesuai HET
+   * tetapi ada biaya tambahan" tetap tercatat sebagai temuan sendiri.
+   */
+  biayaTambahan: number
+  keterangan?: string
+}
+
+/** Butir verifikasi penerima terhadap RDKK. */
+export interface PeriksaPenerima {
+  poktanId: string
+  /** Terisi bila yang diverifikasi satu petani, bukan kelompoknya. */
+  petaniId?: string
+  terdaftarRdkk: boolean
+  hakKg: number
+  ditebusKg: number
+}
+
+/** Butir kelengkapan administrasi penyaluran. */
+export interface PeriksaAdministrasi {
+  butir: string
+  ada: boolean
+}
+
+/** Daftar butir administrasi baku yang diperiksa di kios dan distributor. */
+export const BUTIR_ADMINISTRASI = [
+  'Bukti transaksi / penebusan',
+  'Data penerima sesuai RDKK',
+  'Kartu stok masuk dan keluar',
+  'Dokumen pengiriman distributor',
+  'Perizinan dan perjanjian kios',
+  'Pencatatan penyaluran harian',
+] as const
+
+export interface Pemeriksaan {
   id: string
   kode: string
+  /** Nomor berita acara pemeriksaan. */
+  noBeritaAcara: string
   pengawasId: string
-  targetTipe: TargetPengawasan
-  targetId: string
-  hasil: HasilValidasi
-  catatan?: string
+  /** Instansi pendamping — pengawasan KP3 bersifat lintas instansi. */
+  pendamping: string[]
+  objekTipe: ObjekPengawasan
+  objekId: string
   tanggal: string
+  /** Transaksi yang diambil sebagai sampel uji petik. */
+  sampelPenyaluranIds: string[]
+  stok: PeriksaStok[]
+  harga: PeriksaHarga[]
+  penerima: PeriksaPenerima[]
+  administrasi: PeriksaAdministrasi[]
+  kesimpulan: KesimpulanPemeriksaan
+  catatan?: string
+  /** Data URL tanda tangan pada berita acara. */
+  ttdPengawas?: string
+  ttdObjek?: string
   dibuatPada: string
 }
 
-export type LokasiInspeksi = 'pengecer' | 'poktan'
-export type KesesuaianInspeksi = 'sesuai' | 'sebagian' | 'tidak_sesuai'
+/* --- Temuan --------------------------------------------------------- */
 
-export interface Inspeksi {
+export type SumberTemuan = 'pemeriksaan' | 'penapisan' | 'pengaduan'
+export type TingkatTemuan = 'ringan' | 'sedang' | 'berat'
+export type StatusTemuan = 'terbuka' | 'ditindaklanjuti' | 'selesai'
+
+/**
+ * Satu penyimpangan yang tercatat. Dipisah dari berita acara supaya bisa
+ * dilacak sampai tuntas: satu pemeriksaan bisa melahirkan banyak temuan,
+ * dan satu tindak lanjut bisa menutup beberapa temuan sekaligus.
+ */
+export interface Temuan {
   id: string
   kode: string
-  pengawasId: string
-  lokasiTipe: LokasiInspeksi
-  lokasiId: string
+  sumber: SumberTemuan
+  /** Id pemeriksaan, penyaluran, atau pengaduan asal temuan. */
+  sumberId: string
+  aspek: AspekTepat
+  uraian: string
+  tingkat: TingkatTemuan
+  status: StatusTemuan
+  objekTipe: ObjekPengawasan
+  objekId: string
   tanggal: string
-  temuan: string[]
-  kesesuaian: KesesuaianInspeksi
-  catatan?: string
+  tindakLanjutId?: string
   dibuatPada: string
 }
 
-export type JenisTindakLanjut = 'teguran' | 'rekomendasi' | 'penghargaan'
+/* --- Tindak lanjut -------------------------------------------------- */
+
+export type JenisTindakLanjut =
+  | 'teguran'
+  | 'rekomendasi'
+  | 'pembinaan'
+  | 'penghargaan'
+
 export type SasaranTindakLanjut = 'distributor' | 'pengecer' | 'poktan'
+
+/**
+ * Daur hidup rekomendasi. Tanpa status pelaksanaan, pengawasan berhenti
+ * pada penerbitan surat — dan tidak ada bukti bahwa perbaikannya terjadi.
+ */
+export type StatusTindakLanjut =
+  | 'terbit'
+  | 'dalam_proses'
+  | 'selesai'
+  | 'eskalasi'
+
+export type EskalasiKe = 'dinas' | 'satgas_pangan' | 'aparat_penegak_hukum'
 
 export interface TindakLanjut {
   id: string
@@ -307,11 +439,18 @@ export interface TindakLanjut {
   jenis: JenisTindakLanjut
   sasaranTipe: SasaranTindakLanjut
   sasaranId: string
-  refTipe?: 'validasi' | 'inspeksi'
-  refId?: string
+  /** Temuan yang ditutup oleh tindak lanjut ini. */
+  temuanIds: string[]
   judul: string
   isi: string
   tanggal: string
+  /** Batas waktu perbaikan yang diminta. */
+  tenggat: string
+  status: StatusTindakLanjut
+  /** Keterangan pelaksanaan yang dilaporkan atau diverifikasi pengawas. */
+  buktiPelaksanaan?: string
+  tanggalSelesai?: string
+  eskalasiKe?: EskalasiKe
   dibuatPada: string
 }
 
@@ -326,9 +465,11 @@ export type TipeNotifikasi =
   | 'pengiriman_ditolak'
   | 'penyaluran_disalurkan'
   | 'penyaluran_dikonfirmasi'
-  | 'penyaluran_divalidasi'
-  | 'penyaluran_bermasalah'
+  | 'penyaluran_disanggah'
+  | 'hasil_pemeriksaan'
+  | 'temuan_pengawasan'
   | 'tindak_lanjut'
+  | 'tindak_lanjut_jatuh_tempo'
 
 export interface Notifikasi {
   id: string
@@ -362,8 +503,8 @@ export interface Database {
   pengiriman: Pengiriman[]
   penyaluran: Penyaluran[]
   laporanPemanfaatan: LaporanPemanfaatan[]
-  validasi: Validasi[]
-  inspeksi: Inspeksi[]
+  pemeriksaan: Pemeriksaan[]
+  temuan: Temuan[]
   tindakLanjut: TindakLanjut[]
   notifikasi: Notifikasi[]
 }

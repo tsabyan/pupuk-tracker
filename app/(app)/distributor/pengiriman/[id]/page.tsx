@@ -92,7 +92,7 @@ export default function DetailPengiriman() {
         </Peringatan>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-5">
           <Card>
             <CardHeader

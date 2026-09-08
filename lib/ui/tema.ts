@@ -36,7 +36,7 @@ export const TEMA: Record<Role, TemaRole> = {
   },
   kp3: {
     label: 'Pengawas KP3',
-    ringkas: 'Memantau, memvalidasi, menginspeksi, menindaklanjuti',
+    ringkas: 'Memantau, memeriksa, mencatat temuan, menindaklanjuti',
     singkatan: 'KP3',
     beranda: '/kp3',
   },

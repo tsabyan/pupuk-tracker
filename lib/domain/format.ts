@@ -77,3 +77,11 @@ export function tanggalWaktu(iso: string): string {
 export function hariIni(): string {
   return new Date().toISOString().slice(0, 10)
 }
+
+/** Geser tanggal ISO sejumlah hari, hasilnya tetap "YYYY-MM-DD". */
+export function geserHari(iso: string, hari: number): string {
+  const t = pecahTanggal(iso)
+  if (!t) return iso
+  const tanggalBaru = new Date(Date.UTC(t.y, t.m - 1, t.d + hari))
+  return tanggalBaru.toISOString().slice(0, 10)
+}

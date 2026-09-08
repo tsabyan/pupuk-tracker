@@ -35,6 +35,15 @@
   --aksen: var(--color-tinta);
 }
 
+/**
+ * Jaring pengaman: satu elemen yang kelewat lebar tidak boleh membuat
+ * seluruh halaman bisa digeser ke samping di ponsel. Memakai `clip`, bukan
+ * `hidden`, supaya bilah atas yang `sticky` tetap menempel.
+ */
+html {
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--color-kertas);
   /* Gradasi sangat samar supaya latar tidak terasa datar seperti kertas cetak. */

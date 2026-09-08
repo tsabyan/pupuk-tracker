@@ -4,15 +4,24 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Menu, X } from 'lucide-react'
+import { Button, TombolTautan } from '@/components/ui/button'
+import { Card, CardBody } from '@/components/ui/card'
 import { Ikon } from './ikon'
 import { LonceNotifikasi } from './lonceng'
 import { PemilihRole } from './pemilih-role'
 import type { Role } from '@/lib/domain/types'
+import { useSesiStore } from '@/lib/auth/session'
 import { useSesi } from '@/lib/hooks'
-import { NAVIGASI, NAVIGASI_UMUM, menuAktif, type ItemNav } from '@/lib/ui/navigasi'
+import {
+  NAVIGASI,
+  NAVIGASI_UMUM,
+  menuAktif,
+  peranPemilik,
+  type ItemNav,
+} from '@/lib/ui/navigasi'
 import { TEMA } from '@/lib/ui/tema'
 import { cn } from '@/lib/ui/cn'
-import { KABUPATEN, MUSIM_TANAM, PROVINSI, TAHUN_MUSIM } from '@/lib/seed'
+import { AKUN_DEMO, KABUPATEN, MUSIM_TANAM, PROVINSI, TAHUN_MUSIM } from '@/lib/seed'
 
 /**
  * Kerangka layar untuk seluruh peran.
@@ -23,6 +32,7 @@ import { KABUPATEN, MUSIM_TANAM, PROVINSI, TAHUN_MUSIM } from '@/lib/seed'
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, role, namaEntitas } = useSesi()
   const router = useRouter()
+  const pathname = usePathname()
   const [menuTerbuka, setMenuTerbuka] = useState(false)
 
   useEffect(() => {
@@ -32,6 +42,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user || !role) return null
 
   const tema = TEMA[role]
+  // Halaman ini milik peran lain — tampilkan penjelasan, jangan layar kosong.
+  const pemilik = peranPemilik(pathname)
+  const salahPeran = pemilik !== null && pemilik !== role
 
   return (
     <div className="min-h-dvh lg:flex">
@@ -79,10 +92,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 pb-20 sm:px-6 sm:py-8">
-          {children}
+          {salahPeran && pemilik ? <PeranTidakSesuai pemilik={pemilik} /> : children}
         </main>
       </div>
     </div>
+  )
+}
+
+function PeranTidakSesuai({ pemilik }: { pemilik: Role }) {
+  const masuk = useSesiStore((s) => s.masuk)
+  const router = useRouter()
+  const pathname = usePathname()
+
+  return (
+    <Card>
+      <CardBody className="pt-6 text-center sm:pt-7">
+        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-jingga-lembut text-jingga">
+          <Ikon nama="ShieldCheck" className="size-5" />
+        </span>
+        <h1 className="text-lg font-semibold text-tinta">
+          Halaman ini milik {TEMA[pemilik].label}
+        </h1>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-500">
+          Anda sedang masuk sebagai peran lain, jadi datanya tidak dapat ditampilkan.
+          Pindah peran untuk membukanya, atau kembali ke dashboard Anda.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Button
+            varian="utama"
+            onClick={() => {
+              masuk(AKUN_DEMO[pemilik])
+              router.replace(pathname)
+            }}
+          >
+            Lihat sebagai {TEMA[pemilik].label}
+          </Button>
+          <TombolTautan href="/petunjuk">Buka petunjuk</TombolTautan>
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 

@@ -81,22 +81,49 @@ export const ALUR_UTAMA: TahapAlur[] = [
       'Pilih "Sesuai", tanda tangani sebagai ketua, klik "Konfirmasi penerimaan".',
     ],
     periksa:
-      'Petani punya bukti terima digital. Transaksi kemudian masuk antrian validasi Pengawas KP3.',
+      'Di titik ini rantai distribusi SELESAI: tercatat, berbukti, dan disetujui kedua pihak transaksi. Tidak ada pihak ketiga yang perlu menyetujui — status langsung menjadi "Selesai".',
     href: '/poktan/penerimaan',
     labelTombol: 'Buka daftar penerimaan',
   },
   {
     role: 'kp3',
-    judul: 'Pengawas KP3 memvalidasi',
+    judul: 'Pengawas KP3 memilih objek pengawasan',
     langkah: [
-      'Buka menu Validasi, pilih transaksi teratas pada antrian.',
-      'Baca blok "Hasil pemeriksaan" — kelengkapan bukti diperiksa otomatis.',
-      'Pilih "Valid", lalu klik "Simpan hasil validasi".',
+      'Buka menu Objek Pengawasan, lihat tab "Bertanda penapisan".',
+      'Buka satu transaksi — sistem sudah mengujinya terhadap tujuh tepat.',
+      'Simpan hasil telaah, atau klik "Jadikan objek pemeriksaan lapangan".',
     ],
     periksa:
-      'Antrian berkurang satu dan angka pada halaman Laporan ikut bergerak. Di titik ini rantai selesai: tercatat, terkonfirmasi dua pihak, tervalidasi pengawas.',
-    href: '/kp3/validasi',
-    labelTombol: 'Buka antrian validasi',
+      'Perhatikan bahwa transaksinya sudah berstatus "Selesai" sebelum pengawas menyentuhnya. Pengawasan berjalan di atas transaksi yang sudah tuntas, dengan uji petik — karena itu yang diukur adalah cakupan pengawasan, bukan panjang antrian.',
+    href: '/kp3/objek',
+    labelTombol: 'Buka objek pengawasan',
+  },
+  {
+    role: 'kp3',
+    judul: 'Pengawas KP3 menerbitkan berita acara',
+    langkah: [
+      'Buka menu Pemeriksaan, klik "Catat pemeriksaan".',
+      'Pilih objek — bisa kios, gudang distributor, kelompok tani, atau petani.',
+      'Isi hitung stok fisik dan harga jual yang benar-benar dibayar petani.',
+      'Tanda tangani berita acara, lalu klik "Terbitkan berita acara".',
+    ],
+    periksa:
+      'Panel "Pratinjau berita acara" menyusun temuan dan kesimpulan sendiri dari angka yang Anda isi. Coba naikkan harga jual Urea di atas HET: temuan aspek "tepat harga" muncul seketika — hal yang tidak mungkin terbaca dari data transaksi, karena di sana harga selalu tercatat sebesar HET.',
+    href: '/kp3/pemeriksaan/baru',
+    labelTombol: 'Buka form pemeriksaan',
+  },
+  {
+    role: 'kp3',
+    judul: 'Pengawas KP3 menutup lingkaran pengawasan',
+    langkah: [
+      'Buka menu Temuan, pilih satu temuan terbuka, klik "Tindak lanjuti".',
+      'Klik "Susun draf dari temuan", tetapkan tenggat perbaikan.',
+      'Terbitkan, lalu buka suratnya dan perbarui status pelaksanaannya.',
+    ],
+    periksa:
+      'Temuan berpindah dari "Terbuka" ke "Ditindaklanjuti", lalu ke "Selesai" begitu suratnya dinyatakan tuntas beserta bukti pelaksanaannya. Surat yang lewat tenggat ditandai sendiri dan bisa dieskalasi ke Satgas Pangan atau aparat penegak hukum.',
+    href: '/kp3/temuan',
+    labelTombol: 'Buka register temuan',
   },
 ]
 
@@ -177,7 +204,7 @@ export const USE_CASE: Record<Role, UseCase[]> = {
         'Tanda tangani kotak penerima pada form penyaluran.',
         'Unggah foto struk atau serah terima.',
       ],
-      hasil: 'Bukti menjadi dasar validasi Pengawas KP3.',
+      hasil: 'Bukti menjadi bahan telaah dan uji petik Pengawas KP3.',
       href: '/pengecer/penyaluran',
     },
   ],
@@ -199,7 +226,7 @@ export const USE_CASE: Record<Role, UseCase[]> = {
         'Tandai sesuai atau tidak sesuai, lalu tanda tangani sebagai ketua.',
       ],
       hasil:
-        'Penerimaan bertanda tangan digital. Bila ditandai tidak sesuai, Pengawas KP3 langsung melihatnya.',
+        'Penerimaan bertanda tangan digital dan transaksi langsung tuntas. Bila ditandai tidak sesuai, statusnya menjadi "Disanggah" dan Pengawas KP3 langsung mendapat pemberitahuan.',
       href: '/poktan/penerimaan',
     },
     {
@@ -224,15 +251,65 @@ export const USE_CASE: Record<Role, UseCase[]> = {
       href: '/kp3',
     },
     {
-      judul: 'Memvalidasi transaksi penyaluran',
+      judul: 'Memilih objek pengawasan dari hasil penapisan',
       langkah: [
-        'Buka antrian validasi, pilih satu transaksi.',
-        'Baca hasil pemeriksaan kelengkapan bukti yang dijalankan otomatis.',
-        'Putuskan: valid, perlu verifikasi lapangan, atau tidak valid.',
+        'Buka Objek Pengawasan; sistem sudah menguji tiap transaksi selesai terhadap tujuh tepat.',
+        'Baca penanda pada tab "Bertanda penapisan" — itu alasan berbasis data, bukan dugaan.',
+        'Telaah dokumennya, atau jadikan objek pemeriksaan lapangan.',
       ],
       hasil:
-        'Keputusan tercatat lengkap dengan pengawas, tanggal, dan catatannya, serta terkirim ke kios dan kelompok tani.',
-      href: '/kp3/validasi',
+        'Uji petik jadi terarah. Cakupan pengawasan terukur tanpa memaksa setiap transaksi melewati meja pengawas.',
+      href: '/kp3/objek',
+    },
+    {
+      judul: 'Memeriksa stok fisik terhadap catatan sistem',
+      langkah: [
+        'Buka Pemeriksaan, pilih objek jenis "Pengecer resmi".',
+        'Angka sistem sudah terisi dari riwayat transaksi; isi hasil hitung fisik gudang.',
+      ],
+      hasil:
+        'Selisih stok langsung menjadi temuan berkategori, dengan tingkat yang dinilai dari besar simpangannya.',
+      href: '/kp3/pemeriksaan/baru',
+    },
+    {
+      judul: 'Mengawasi harga jual dan pungutan tambahan',
+      langkah: [
+        'Pada form pemeriksaan, isi harga yang benar-benar dibayar petani.',
+        'Isi juga pungutan di luar harga pupuk bila ada.',
+      ],
+      hasil:
+        'Pelanggaran HET terdokumentasi. Ini satu-satunya jalannya: data transaksi selalu mencatat HET, jadi kios yang menjual lebih mahal tidak akan pernah melaporkannya sendiri.',
+      href: '/kp3/pemeriksaan/baru',
+    },
+    {
+      judul: 'Memverifikasi penerima terhadap RDKK',
+      langkah: [
+        'Pilih objek jenis "Kelompok tani" atau "Petani penerima".',
+        'Hak dan penebusan terisi dari RDKK; tandai penerima yang tidak terdaftar.',
+      ],
+      hasil:
+        'Penebusan oleh pihak yang tidak berhak tercatat sebagai temuan bertingkat berat.',
+      href: '/kp3/pemeriksaan/baru',
+    },
+    {
+      judul: 'Menerbitkan berita acara lintas instansi',
+      langkah: [
+        'Isi instansi pendamping — pengawasan KP3 dijalankan bersama dinas dan aparat terkait.',
+        'Tanda tangani berita acara bersama pihak yang diperiksa.',
+      ],
+      hasil:
+        'Berita acara, temuan, dan kesimpulan terbit sebagai satu dokumen yang bisa dirujuk tindak lanjut.',
+      href: '/kp3/pemeriksaan',
+    },
+    {
+      judul: 'Melacak temuan sampai tuntas',
+      langkah: [
+        'Buka Temuan, baca sebaran menurut tujuh tepat.',
+        'Terbitkan tindak lanjut dengan tenggat, lalu perbarui status pelaksanaannya.',
+      ],
+      hasil:
+        'Lingkaran pengawasan tertutup: temuan → rekomendasi → pelaksanaan → verifikasi. Inilah yang dinilai pada maturitas SPIP.',
+      href: '/kp3/temuan',
     },
     {
       judul: 'Membaca laporan dan analitik',
@@ -242,26 +319,6 @@ export const USE_CASE: Record<Role, UseCase[]> = {
       ],
       hasil: 'Kios dengan kepatuhan terendah muncul paling atas.',
       href: '/kp3/laporan',
-    },
-    {
-      judul: 'Mencatat inspeksi lapangan',
-      langkah: [
-        'Buka menu Inspeksi Lapangan, klik "Catat inspeksi".',
-        'Pilih lokasi, tambahkan temuan dari daftar contoh atau ketik sendiri.',
-        'Tetapkan kesimpulan kesesuaian.',
-      ],
-      hasil: 'Hasil kunjungan tersimpan dan dapat dirujuk saat menerbitkan tindak lanjut.',
-      href: '/kp3/inspeksi',
-    },
-    {
-      judul: 'Menerbitkan tindak lanjut',
-      langkah: [
-        'Buka menu Tindak Lanjut, klik "Terbitkan tindak lanjut".',
-        'Pilih jenis: teguran, rekomendasi, atau penghargaan.',
-        'Tentukan pihak yang dituju dan uraikan isinya.',
-      ],
-      hasil: 'Pihak yang dituju langsung menerima notifikasi di aplikasinya.',
-      href: '/kp3/tindak-lanjut',
     },
   ],
 }
@@ -297,33 +354,48 @@ export const UJI_BATAS: UjiBatas[] = [
       'Ditolak juga. Dua pagar berlaku bersamaan: hak petani dan barang yang benar-benar ada.',
   },
   {
-    judul: 'Kelompok tani menandai tidak sesuai',
+    judul: 'Kelompok tani menyanggah penerimaan',
     cara: 'Sebagai Kelompok Tani, saat konfirmasi pilih "Tidak sesuai".',
     harapkan:
-      'Catatan wajib diisi, penerimaan tetap tercatat, dan transaksi muncul di daftar "Perlu perhatian" milik Pengawas KP3.',
+      'Catatan wajib diisi, penerimaan tetap tercatat, status menjadi "Disanggah", dan transaksi muncul di daftar "Perlu perhatian" milik Pengawas KP3.',
   },
   {
-    judul: 'Validasi mendahului konfirmasi kelompok tani',
-    cara: 'Sebagai Pengawas KP3, buka transaksi yang masih berstatus "Menunggu Konfirmasi Poktan".',
+    judul: 'Pengawasan tidak pernah menahan transaksi',
+    cara: 'Sebagai Pengawas KP3, buka transaksi yang masih berstatus "Menunggu Konfirmasi Poktan" dari halaman Objek Pengawasan.',
     harapkan:
-      'Form validasi terkunci disertai penjelasan bahwa urutannya belum terpenuhi.',
+      'Form telaah terkunci disertai penjelasan bahwa belum ada yang bisa ditelaah — dan bahwa transaksi itu pun tidak sedang menunggu pengawas. Ini pembeda pokoknya: KP3 mengawasi setelah transaksi tuntas, tidak menyetujuinya.',
   },
   {
-    judul: 'Transaksi bermasalah berlanjut ke tindak lanjut',
-    cara: 'Sebagai Pengawas KP3, validasi sebuah transaksi dengan hasil "Tidak valid" disertai catatan.',
+    judul: 'Pelanggaran HET tidak terbaca dari data sistem',
+    cara: 'Sebagai Pengawas KP3, buka satu transaksi pada Objek Pengawasan dan baca butir "Tepat harga" pada penapisan.',
     harapkan:
-      'Status menjadi "Bermasalah" dan muncul tombol untuk langsung menerbitkan tindak lanjut kepada kios terkait.',
+      'Butirnya lolos, tetapi keterangannya menyatakan hanya kebenaran hitungan yang teruji. Harga jual sebenarnya baru terbukti lewat form pemeriksaan lapangan atau pengaduan petani.',
   },
   {
-    judul: 'Perlu verifikasi lapangan',
-    cara: 'Pilih hasil validasi "Perlu verifikasi lapangan".',
+    judul: 'Tindak lanjut selesai tanpa bukti pelaksanaan',
+    cara: 'Buka satu tindak lanjut, pilih status "Selesai", biarkan keterangan pelaksanaan kosong, lalu simpan.',
     harapkan:
-      'Keputusan tercatat, tetapi status transaksi sengaja tidak berubah — menunggu pengawas turun ke lapangan lebih dulu.',
+      'Ditolak. Status selesai berarti perbaikan diverifikasi pengawas, jadi buktinya wajib ada.',
+  },
+  {
+    judul: 'Membuka kembali tindak lanjut yang sudah selesai',
+    cara: 'Buka tindak lanjut berstatus "Selesai".',
+    harapkan:
+      'Tidak ada pilihan status berikutnya. Riwayat pengawasan tidak boleh diputar balik.',
+  },
+  {
+    judul: 'Surat koreksi tanpa rujukan temuan',
+    cara: 'Terbitkan tindak lanjut jenis "Teguran" tanpa mencentang satu pun temuan.',
+    harapkan:
+      'Tombol terbit mengunci. Teguran tanpa temuan tidak bisa diverifikasi pelaksanaannya — hanya penghargaan yang boleh tanpa rujukan temuan.',
   },
 ]
 
 export const DI_LUAR_CAKUPAN = [
   'Autentikasi dan kata sandi sungguhan',
+  'Kanal pengaduan masyarakat (WA, telepon, surat) dan disposisinya',
+  'Rencana pengawasan tahunan dan penentuan objek berbasis jadwal',
+  'Laporan hasil pengawasan sebagai dokumen periodik yang diterbitkan',
   'Peta sebaran alokasi dan penyaluran',
   'Grafik analitik (laporan disajikan sebagai angka dan tabel)',
   'Mode luring (PWA) untuk daerah bersinyal lemah',

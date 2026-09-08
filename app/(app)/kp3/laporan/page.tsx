@@ -40,12 +40,12 @@ export default function LaporanKp3() {
   return (
     <>
       <PageHeader
-        langkah="Langkah 3"
+        langkah="Langkah 6"
         judul="Laporan & Analitik"
         keterangan={`Rekap distribusi, serapan, dan kepatuhan pengecer resmi untuk musim tanam ${MUSIM_TANAM} ${TAHUN_MUSIM}.`}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_19rem]">
+      <div className="grid *:min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="grid content-start gap-4 sm:grid-cols-2">
           <StatCard
             label="Alokasi"
@@ -208,7 +208,8 @@ export default function LaporanKp3() {
           <>
             <p className="border-b border-garis px-5 py-3.5 text-sm text-neutral-500 sm:px-6">
               Diurutkan dari yang paling perlu perhatian. Patuh = penyaluran punya bukti
-              serah terima dan konfirmasi kelompok tani.
+              serah terima dan konfirmasi kelompok tani. Kolom &ldquo;diperiksa&rdquo; adalah
+              cakupan uji petik pengawasan, bukan tunggakan persetujuan.
             </p>
             <TabelWadah>
               <Tabel>
@@ -217,8 +218,8 @@ export default function LaporanKp3() {
                     <Th>Pengecer</Th>
                     <Th numerik>Penyaluran</Th>
                     <Th numerik>Dikonfirmasi</Th>
-                    <Th numerik>Tervalidasi</Th>
-                    <Th>Temuan</Th>
+                    <Th numerik>Diperiksa</Th>
+                    <Th>Catatan pengawasan</Th>
                     <Th className="w-44">Kepatuhan</Th>
                   </tr>
                 </thead>
@@ -235,12 +236,17 @@ export default function LaporanKp3() {
                         </Td>
                         <Td numerik>{k.totalPenyaluran}</Td>
                         <Td numerik>{k.dikonfirmasiPoktan}</Td>
-                        <Td numerik>{k.tervalidasi}</Td>
+                        <Td numerik>{k.diperiksa}</Td>
                         <Td>
                           <div className="flex flex-wrap gap-1.5">
-                            {k.bermasalah > 0 ? (
+                            {k.temuanBelumTuntas > 0 ? (
                               <Badge tone="bahaya" titik>
-                                {k.bermasalah} bermasalah
+                                {k.temuanBelumTuntas} temuan belum tuntas
+                              </Badge>
+                            ) : null}
+                            {k.disanggah > 0 ? (
+                              <Badge tone="peringatan" titik>
+                                {k.disanggah} disanggah
                               </Badge>
                             ) : null}
                             {k.selisihPenerimaan > 0 ? (
@@ -248,7 +254,9 @@ export default function LaporanKp3() {
                                 {k.selisihPenerimaan} selisih
                               </Badge>
                             ) : null}
-                            {k.bermasalah === 0 && k.selisihPenerimaan === 0 ? (
+                            {k.temuanBelumTuntas === 0 &&
+                            k.disanggah === 0 &&
+                            k.selisihPenerimaan === 0 ? (
                               <span className="text-sm text-neutral-400">—</span>
                             ) : null}
                           </div>

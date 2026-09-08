@@ -101,7 +101,7 @@ export default function FormPenyaluran() {
         keterangan="Jumlah dibatasi hak RDKK kelompok tani dan sisa stok kios. Bukti serah terima disimpan bersama transaksi."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardHeader judul="Penerima & transaksi" />
           <CardBody className="space-y-4">

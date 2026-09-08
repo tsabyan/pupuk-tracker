@@ -123,7 +123,7 @@ function FormPengiriman() {
         keterangan="Nomor faktur dan berita acara diterbitkan otomatis saat pengiriman disimpan. Kios tujuan langsung menerima notifikasi."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardHeader judul="Tujuan & dokumen" />
           <CardBody className="space-y-4">

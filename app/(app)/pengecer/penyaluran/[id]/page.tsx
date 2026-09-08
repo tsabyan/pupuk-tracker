@@ -36,16 +36,22 @@ export default function DetailPenyaluranPengecer() {
         aksi={<BadgePenyaluran status={penyaluran.status} />}
       />
 
-      {penyaluran.status === 'bermasalah' ? (
+      {penyaluran.status === 'disanggah' ? (
         <Peringatan nada="bahaya">
-          Pengawas KP3 menandai transaksi ini bermasalah.
-          {penyaluran.validasi?.catatan ? ` ${penyaluran.validasi.catatan}` : ''}
+          Kelompok tani menyanggah penerimaan transaksi ini.
+          {penyaluran.konfirmasi?.catatan ? ` ${penyaluran.konfirmasi.catatan}` : ''}
+        </Peringatan>
+      ) : null}
+      {penyaluran.pengawasan?.hasil === 'temuan' ? (
+        <Peringatan nada="peringatan">
+          Pengawas KP3 mencatat temuan pada transaksi ini.
+          {penyaluran.pengawasan.catatan ? ` ${penyaluran.pengawasan.catatan}` : ''}
         </Peringatan>
       ) : null}
       {penyaluran.status === 'disalurkan' ? (
         <Peringatan nada="info">
           Menunggu ketua {cari.namaPoktan(penyaluran.poktanId)} mengonfirmasi penerimaan.
-          Transaksi belum masuk antrian validasi KP3.
+          Transaksi tuntas begitu konfirmasi itu masuk.
         </Peringatan>
       ) : null}
 

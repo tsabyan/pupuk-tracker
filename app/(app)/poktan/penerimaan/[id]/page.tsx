@@ -59,7 +59,7 @@ export default function KonfirmasiPenerimaanPoktan() {
     <Card>
       <CardHeader
         judul="Konfirmasi penerimaan"
-        keterangan="Tanda tangan ketua kelompok tani menjadi bukti serah terima dan membuka antrian validasi Pengawas KP3."
+        keterangan="Tanda tangan ketua kelompok tani menjadi bukti serah terima dan menuntaskan transaksi ini."
       />
       <CardBody className="space-y-5">
         <div>
@@ -116,8 +116,8 @@ export default function KonfirmasiPenerimaanPoktan() {
 
         {kesesuaian === 'tidak_sesuai' ? (
           <Peringatan nada="peringatan">
-            Penerimaan tetap tercatat, tetapi ditandai tidak sesuai. Pengawas KP3 akan
-            melihatnya di antrian validasi.
+            Penerimaan tetap tercatat, tetapi berstatus disanggah. Pengawas KP3
+            langsung menerima pemberitahuannya sebagai calon objek pemeriksaan.
           </Peringatan>
         ) : null}
         {galat ? <Peringatan nada="bahaya">{galat}</Peringatan> : null}
@@ -152,7 +152,7 @@ export default function KonfirmasiPenerimaanPoktan() {
       {perluKonfirmasi ? (
         <Peringatan nada="info">
           Cek jenis, jumlah, dan kualitas pupuk sebelum menandatangani. Setelah
-          dikonfirmasi, transaksi masuk antrian validasi Pengawas KP3.
+          dikonfirmasi, transaksi dinyatakan tuntas.
         </Peringatan>
       ) : null}
 

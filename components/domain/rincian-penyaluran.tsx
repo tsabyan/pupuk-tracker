@@ -28,9 +28,11 @@ export function RincianPenyaluran({
   const kios = cari.pengecer(penyaluran.pengecerId)
 
   const sudahKonfirmasi = Boolean(penyaluran.konfirmasi)
-  const sudahValidasi = penyaluran.status === 'divalidasi'
-  const bermasalah = penyaluran.status === 'bermasalah'
+  const disanggah = penyaluran.status === 'disanggah'
 
+  // Rantainya berhenti pada kelompok tani: transaksi sah begitu penerima
+  // menyatakan sikapnya. Pengawasan KP3 ditampilkan terpisah karena tidak
+  // menahan apa pun — lihat panel "Jejak pengawasan".
   const langkah: Langkah[] = [
     {
       label: 'Pengecer menyalurkan pupuk',
@@ -45,25 +47,22 @@ export function RincianPenyaluran({
       status: penyaluran.bukti?.ttdPenerima ? 'selesai' : 'menunggu',
     },
     {
-      label: 'Kelompok tani mengonfirmasi penerimaan',
+      label: disanggah
+        ? 'Kelompok tani menyanggah penerimaan'
+        : 'Kelompok tani mengonfirmasi penerimaan',
       keterangan: penyaluran.konfirmasi
         ? `${f.tanggal(penyaluran.konfirmasi.tanggal)} · ${
-            penyaluran.konfirmasi.kesesuaian === 'sesuai' ? 'Sesuai' : 'Tidak sesuai'
+            penyaluran.konfirmasi.kesesuaian === 'sesuai'
+              ? 'Sesuai — transaksi tuntas'
+              : 'Tidak sesuai'
           }`
         : 'Menunggu tanda tangan ketua kelompok tani',
-      status: sudahKonfirmasi ? 'selesai' : 'berjalan',
-    },
-    {
-      label: 'Pengawas KP3 memvalidasi',
-      keterangan: penyaluran.validasi
-        ? `${f.tanggal(penyaluran.validasi.tanggal)} · ${cari.namaPengawas(penyaluran.validasi.pengawasId)}`
-        : 'Menunggu antrian validasi',
-      status: bermasalah ? 'gagal' : sudahValidasi ? 'selesai' : sudahKonfirmasi ? 'berjalan' : 'menunggu',
+      status: disanggah ? 'gagal' : sudahKonfirmasi ? 'selesai' : 'berjalan',
     },
   ]
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+    <div className="grid *:min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-5">
         <Card>
           <CardHeader
@@ -140,25 +139,38 @@ export function RincianPenyaluran({
             ) : null}
           </dl>
 
-          {penyaluran.validasi ? (
-            <div className="mt-3 rounded-lg bg-neutral-50 p-3">
-              <p className="text-xs font-medium text-neutral-500">Hasil validasi KP3</p>
-              <p className="mt-1 text-sm font-medium text-neutral-900">
-                {penyaluran.validasi.hasil === 'valid'
-                  ? 'Valid'
-                  : penyaluran.validasi.hasil === 'perlu_verifikasi'
-                    ? 'Perlu verifikasi lapangan'
-                    : 'Tidak valid'}
+          <div className="mt-3 rounded-2xl bg-neutral-50 p-3.5">
+            <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
+              Jejak pengawasan
+            </p>
+            {penyaluran.pengawasan ? (
+              <>
+                <p className="mt-1.5">
+                  <Badge
+                    tone={penyaluran.pengawasan.hasil === 'sesuai' ? 'sukses' : 'bahaya'}
+                  >
+                    {penyaluran.pengawasan.hasil === 'sesuai'
+                      ? 'Diperiksa — sesuai'
+                      : 'Diperiksa — bertemuan'}
+                  </Badge>
+                </p>
+                {penyaluran.pengawasan.catatan ? (
+                  <p className="mt-2 text-sm text-neutral-700">
+                    {penyaluran.pengawasan.catatan}
+                  </p>
+                ) : null}
+                <p className="mt-1.5 text-xs text-neutral-500">
+                  {cari.namaPengawas(penyaluran.pengawasan.pengawasId)} ·{' '}
+                  {f.tanggal(penyaluran.pengawasan.tanggal)}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
+                Belum masuk uji petik pengawasan. Ini bukan tunggakan: KP3
+                memeriksa dengan uji petik, bukan satu per satu.
               </p>
-              {penyaluran.validasi.catatan ? (
-                <p className="mt-1 text-sm text-neutral-700">{penyaluran.validasi.catatan}</p>
-              ) : null}
-              <p className="mt-1 text-xs text-neutral-500">
-                {cari.namaPengawas(penyaluran.validasi.pengawasId)} ·{' '}
-                {f.tanggal(penyaluran.validasi.tanggal)}
-              </p>
-            </div>
-          ) : null}
+            )}
+          </div>
         </CardBody>
       </Card>
     </div>

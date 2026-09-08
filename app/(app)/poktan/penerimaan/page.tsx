@@ -64,8 +64,8 @@ export default function DaftarPenerimaanPoktan() {
           nada="info"
           judul={`${menunggu.length} penyerahan menunggu tanda tangan Anda`}
         >
-          Konfirmasi menjadi bukti serah terima sekaligus membuka antrian validasi
-          Pengawas KP3.
+          Konfirmasi menjadi bukti serah terima digital dan menuntaskan transaksi
+          ini.
         </Peringatan>
       ) : null}
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { cakupanPengawasan } from '@/lib/domain/pengawasan'
 import { hitungSisaHak, hitungStokPengecer } from '@/lib/domain/stok'
 import { buatDatabase } from './index'
 
@@ -31,7 +32,41 @@ describe('basis data demo', () => {
     expect(db.pengiriman.some((p) => p.status === 'dikirim')).toBe(true)
     expect(db.penyaluran.some((p) => p.status === 'disalurkan')).toBe(true)
     expect(db.penyaluran.some((p) => p.status === 'dikonfirmasi')).toBe(true)
+    expect(db.penyaluran.some((p) => p.status === 'disanggah')).toBe(true)
     expect(db.notifikasi.length).toBeGreaterThan(0)
+  })
+
+  it('memakai uji petik: sebagian transaksi selesai memang belum diperiksa', () => {
+    const { rasio, selesai, diperiksa } = cakupanPengawasan(db.penyaluran)
+    expect(selesai).toBeGreaterThan(0)
+    expect(diperiksa).toBeGreaterThan(0)
+    expect(rasio).toBeLessThan(1)
+  })
+
+  it('menghasilkan temuan berkategori dari berita acara pemeriksaan', () => {
+    expect(db.pemeriksaan.length).toBeGreaterThan(0)
+    expect(db.temuan.length).toBeGreaterThan(0)
+
+    // Pelanggaran harga hanya bisa lahir dari pemeriksaan lapangan, tidak
+    // pernah dari data transaksi yang memang selalu mencatat HET.
+    expect(db.temuan.some((t) => t.aspek === 'harga')).toBe(true)
+    for (const t of db.temuan) {
+      if (t.sumber !== 'pemeriksaan') continue
+      expect(db.pemeriksaan.some((p) => p.id === t.sumberId)).toBe(true)
+    }
+  })
+
+  it('menutup lingkaran: tindak lanjut selesai membuat temuannya selesai', () => {
+    const tuntas = db.tindakLanjut.filter((t) => t.status === 'selesai')
+    expect(tuntas.length).toBeGreaterThan(0)
+    for (const t of tuntas) {
+      for (const id of t.temuanIds) {
+        expect(db.temuan.find((x) => x.id === id)?.status).toBe('selesai')
+      }
+    }
+    // Sengaja ada yang masih menggantung sebagai umpan aksi saat presentasi.
+    expect(db.temuan.some((t) => t.status === 'terbuka')).toBe(true)
+    expect(db.tindakLanjut.some((t) => t.status !== 'selesai')).toBe(true)
   })
 
   it('menyediakan akun demo untuk keempat role', () => {

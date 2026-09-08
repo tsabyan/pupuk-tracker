@@ -104,7 +104,7 @@ export default function FormAlokasi() {
         keterangan="Tentukan wilayah dan periode, lalu bagikan jumlah per jenis pupuk ke setiap kios resmi binaan."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
+      <div className="grid *:min-w-0 gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <Card className="h-fit">
           <CardHeader judul="Wilayah & periode" />
           <CardBody className="space-y-4">
@@ -181,7 +181,7 @@ export default function FormAlokasi() {
                 <Tabel>
                   <thead>
                     <tr>
-                      <Th>Pengecer</Th>
+                      <Th className="min-w-40">Pengecer</Th>
                       {db.jenisPupuk.map((jp) => (
                         <Th key={jp.id} numerik className="w-28">
                           {jp.kode} <span className="font-normal normal-case">(kg)</span>
@@ -217,7 +217,7 @@ export default function FormAlokasi() {
                                 onChange={(e) =>
                                   set(kios.id, jp.id, Math.max(0, Number(e.target.value) || 0))
                                 }
-                                className="text-right"
+                                className="min-w-[4.5rem] text-right"
                               />
                             </Td>
                           ))}

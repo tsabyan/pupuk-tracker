@@ -29,12 +29,15 @@ export const NAVIGASI: Record<Role, ItemNav[]> = {
     { href: '/poktan/penerimaan', label: 'Terima Pupuk', langkah: 2, ikon: 'ClipboardCheck' },
     { href: '/poktan/pemanfaatan', label: 'Pemanfaatan', langkah: 4, ikon: 'Sprout' },
   ],
+  // Urutannya mengikuti rantai SOP pengawasan: pantau → pilih objek →
+  // periksa → catat temuan → tindak lanjuti → laporkan.
   kp3: [
     { href: '/kp3', label: 'Monitoring', langkah: 1, ikon: 'Activity' },
-    { href: '/kp3/validasi', label: 'Validasi', langkah: 2, ikon: 'ShieldCheck' },
-    { href: '/kp3/laporan', label: 'Laporan', langkah: 3, ikon: 'FileBarChart' },
-    { href: '/kp3/inspeksi', label: 'Inspeksi Lapangan', langkah: 4, ikon: 'Search' },
+    { href: '/kp3/objek', label: 'Objek Pengawasan', langkah: 2, ikon: 'ScanSearch' },
+    { href: '/kp3/pemeriksaan', label: 'Pemeriksaan', langkah: 3, ikon: 'ClipboardCheck' },
+    { href: '/kp3/temuan', label: 'Temuan', langkah: 4, ikon: 'AlertTriangle' },
     { href: '/kp3/tindak-lanjut', label: 'Tindak Lanjut', langkah: 5, ikon: 'Megaphone' },
+    { href: '/kp3/laporan', label: 'Laporan', langkah: 6, ikon: 'FileBarChart' },
   ],
 }
 
@@ -56,4 +59,20 @@ export function menuAktif(role: Role, pathname: string): string | undefined {
     .map((m) => m.href)
     .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
     .sort((a, b) => b.length - a.length)[0]
+}
+
+/**
+ * Peran yang memiliki sebuah alamat, atau `null` bila alamat itu umum
+ * (mis. `/notifikasi`). Dipakai untuk mencegah layar kosong ketika seseorang
+ * membuka halaman milik peran lain — misalnya dari tautan lama atau setelah
+ * berpindah peran.
+ */
+export function peranPemilik(pathname: string): Role | null {
+  for (const peran of Object.keys(NAVIGASI) as Role[]) {
+    const cocok = NAVIGASI[peran].some(
+      (m) => pathname === m.href || pathname.startsWith(`${m.href}/`),
+    )
+    if (cocok) return peran
+  }
+  return null
 }

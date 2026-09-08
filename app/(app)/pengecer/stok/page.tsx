@@ -46,7 +46,7 @@ export default function HalamanStok() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[19rem_1fr]">
+      <div className="grid *:min-w-0 gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
         <PanelMetrik
           metrik={[
             { label: 'Sisa stok', ikon: 'Boxes', nilai: f.angka(totalSisa), satuan: 'kg' },
